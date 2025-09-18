@@ -1,0 +1,130 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+        - id: pricing-service
+          uri: lb://pricing-service
+          predicates:
+            - Path=/api/pricing/**
+        - id: payment-service
+          uri: lb://payment-service
+          predicates:
+            - Path=/api/payments/**
+        - id: parcel-service
+          uri: lb://parcel-service
+          predicates:
+            - Path=/api/parcels/**
+        - id: consolidation-service
+          uri: lb://consolidation-service
+          predicates:
+            - Path=/api/consolidation/**
+        - id: warehouse-service
+          uri: lb://warehouse-service
+          predicates:
+            - Path=/api/warehouses/**
+        - id: eta-service
+          uri: lb://eta-service
+          predicates:
+            - Path=/api/eta/**
+        - id: chatbot-service
+          uri: lb://chatbot-service
+          predicates:
+            - Path=/api/chatbot/**
+        - id: kafka-ui
+          uri: http://kafka-ui:8080
+          predicates:
+            - Path=/kafka-ui/**
+          filters:
+            - RewritePath=/kafka-ui/(?<segment>.*), /${segment}
+        - id: keycloak-admin
+          uri: http://keycloak:8080
+          predicates:
+            - Path=/auth/admin/**
+          filters:
+            - RewritePath=/auth/admin/(?<segment>.*), /admin/${segment}
+
+  redis:
+    host: redis
+    port: 6379
+    password: redispass
+
+  kafka:
+    bootstrap-servers: kafka:9092
+    consumer:
+      group-id: api-gateway-group
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/parcel-realm
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      authService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        waitDurationInOpenState: 10000
+        failureRateThreshold: 50
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+    urls:
+      - url: /api-docs/auth-service
+        name: Auth Service
+      - url: /api-docs/pricing-service
+        name: Pricing Service
+      - url: /api-docs/payment-service
+        name: Payment Service
+      - url: /api-docs/parcel-service
+        name: Parcel Service
+      - url: /api-docs/consolidation-service
+        name: Consolidation Service
+      - url: /api-docs/warehouse-service
+        name: Warehouse Service
+      - url: /api-docs/eta-service
+        name: ETA Service
+      - url: /api-docs/chatbot-service
+        name: Chatbot Service
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,gateway
+  endpoint:
+    health:
+      show-details: always
+  tracing:
+    sampling:
+      probability: 1.0
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    com.parcel.apigateway: DEBUG

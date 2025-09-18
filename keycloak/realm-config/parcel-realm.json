@@ -1,0 +1,106 @@
+{
+  "realm": "parcel-realm",
+  "enabled": true,
+  "displayName": "Parcel Consolidation Realm",
+  "clients": [
+    {
+      "clientId": "auth-service",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "your-client-secret",
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true
+    },
+    {
+      "clientId": "parcel-service",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "parcel-service-secret",
+      "redirectUris": ["*"],
+      "webOrigins": ["*"]
+    },
+    {
+      "clientId": "warehouse-service",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "warehouse-service-secret",
+      "redirectUris": ["*"],
+      "webOrigins": ["*"]
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administrator role"
+      },
+      {
+        "name": "customer",
+        "description": "Customer role"
+      },
+      {
+        "name": "staff",
+        "description": "Staff role"
+      },
+      {
+        "name": "driver",
+        "description": "Driver role"
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@example.com",
+      "firstName": "System",
+      "lastName": "Administrator",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["admin"],
+      "emailVerified": true
+    },
+    {
+      "username": "customer1",
+      "email": "customer1@example.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "customer123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["customer"],
+      "emailVerified": true
+    }
+  ],
+  "groups": [
+    {
+      "name": "Administrators",
+      "realmRoles": ["admin"]
+    },
+    {
+      "name": "Customers",
+      "realmRoles": ["customer"]
+    },
+    {
+      "name": "Staff",
+      "realmRoles": ["staff"]
+    },
+    {
+      "name": "Drivers",
+      "realmRoles": ["driver"]
+    }
+  ]
+}

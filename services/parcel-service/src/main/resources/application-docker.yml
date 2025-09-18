@@ -1,0 +1,60 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: parcel-service
+
+  data:
+    mongodb:
+      uri: mongodb://mongodb:27017/parcel_db
+      database: parcel_db
+
+  kafka:
+    bootstrap-servers: kafka:9092
+    consumer:
+      group-id: parcel-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        spring.json.add.type.headers: false
+    properties:
+      security.protocol: PLAINTEXT
+      request.timeout.ms: 30000
+      retry.backoff.ms: 500
+      session.timeout.ms: 10000
+      heartbeat.interval.ms: 3000
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://auth-service:8083
+          jwk-set-uri: http://auth-service:8083/oauth2/jwks
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
+
+logging:
+  level:
+    com.parcelplatform: DEBUG
+    org.springframework.kafka: INFO
+    org.apache.kafka: WARN
+    org.springframework.data.mongodb: INFO
+    org.springframework.security: INFO

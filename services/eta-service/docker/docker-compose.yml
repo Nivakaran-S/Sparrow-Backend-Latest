@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  eta-service:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    container_name: eta-service
+    ports:
+      - "8085:8080"   # Map host port 8085 to container port 8080
+    environment:
+      FLASK_SECRET_KEY: "your-secret-key-here"
+      FLASK_DEBUG: "False"
+      PORT: "8080"    # Port the Flask app runs on inside container
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 20s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
