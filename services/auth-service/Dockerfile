@@ -1,3 +1,4 @@
+# services/auth-service/Dockerfile
 # ----------------------------
 # Build stage
 # ----------------------------
@@ -31,12 +32,12 @@ COPY --from=build /app/build/libs/*.jar app.jar
 RUN addgroup -S spring && adduser -S spring -G spring
 USER spring
 
-# Expose port
-EXPOSE 8081
+# FIXED: Expose correct port (8083, not 8081)
+EXPOSE 8083
 
-# Healthcheck
+# FIXED: Healthcheck uses correct port
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:8081/actuator/health || exit 1
+    CMD wget --quiet --tries=1 --spider http://localhost:8083/actuator/health || exit 1
 
 # Run application
 ENTRYPOINT ["java", "-jar", "app.jar"]

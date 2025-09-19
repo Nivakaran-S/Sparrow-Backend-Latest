@@ -1,3 +1,4 @@
+# services/auth-service/src/main/resources/application.yml
 server:
   port: 8083
 
@@ -26,10 +27,10 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/parcel-realm}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8089/realms/parcel-realm}
 
 keycloak:
-  auth-server-url: ${KEYCLOAK_URL:http://localhost:8080}
+  auth-server-url: ${KEYCLOAK_URL:http://keycloak:8080}
   realm: ${KEYCLOAK_REALM:parcel-realm}
 
   # For resource server
@@ -58,16 +59,31 @@ springdoc:
     urls-primary-name: Auth Service API
     disable-swagger-default-url: false
 
+# ADD/UPDATE: Improved Eureka configuration
 eureka:
   client:
     service-url:
       defaultZone: http://eureka-server:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+    registry-fetch-interval-seconds: 5
+  instance:
+    hostname: auth-service
+    prefer-ip-address: false
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+    health-check-url-path: /actuator/health
+    status-page-url-path: /actuator/info
+    metadata-map:
+      management.context-path: /actuator
 
 logging:
   level:
     com.sparrow.auth_service: DEBUG
     org.keycloak: INFO
     org.springdoc: INFO
+    com.netflix.eureka: DEBUG
+    com.netflix.discovery: DEBUG
     root: INFO
 
 management:
