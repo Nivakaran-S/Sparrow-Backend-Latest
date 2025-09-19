@@ -40,6 +40,15 @@
         </option>
       </GradleProjectSettings>
       <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/services/auth-service" />
+        <option name="gradleJvm" value="openjdk-24" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/services/auth-service" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
         <option name="externalProjectPath" value="$PROJECT_DIR$/warehouse-service/warehouse-service" />
         <option name="gradleJvm" value="openjdk-24" />
         <option name="modules">

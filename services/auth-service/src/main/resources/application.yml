@@ -8,17 +8,23 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/parcel-realm}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/parcel-realm}  # Change to keycloak:8080
 
 keycloak:
-  auth-server-url: ${KEYCLOAK_URL:http://localhost:8080}
+  auth-server-url: ${KEYCLOAK_URL:http://keycloak:8080}  # This is correct
   realm: ${KEYCLOAK_REALM:parcel-realm}
+
+  # For resource server
   resource: ${KEYCLOAK_CLIENT:auth-service}
   credentials:
     secret: ${KEYCLOAK_SECRET:your-client-secret}
+
+  # For admin client
   admin:
+    client-id: ${KEYCLOAK_ADMIN_CLIENT:admin-cli}
     username: ${KEYCLOAK_ADMIN_USER:admin}
-    password: ${KEYCLOAK_ADMIN_PASSWORD:admin}
+    password: ${KEYCLOAK_ADMIN_PASSWORD:admin123}
+    client-secret: ${KEYCLOAK_ADMIN_SECRET:}
 
 springdoc:
   api-docs:
@@ -42,9 +48,8 @@ eureka:
 logging:
   level:
     com.sparrow.authservice: DEBUG
-    org.keycloak: INFO
+    org.keycloak: DEBUG  # Change to DEBUG for troubleshooting
     org.springdoc: INFO
-
 
 management:
   endpoints:

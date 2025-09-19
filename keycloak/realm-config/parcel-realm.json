@@ -1,60 +1,148 @@
 {
+  "id": "parcel-realm",
   "realm": "parcel-realm",
+  "displayName": "Parcel Delivery Realm",
   "enabled": true,
-  "displayName": "Parcel Consolidation Realm",
+  "sslRequired": "external",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": false,
+  "rememberMe": true,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": false,
+
   "clients": [
     {
       "clientId": "auth-service",
+      "name": "Auth Service",
+      "description": "Authentication service client",
       "enabled": true,
-      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
       "secret": "your-client-secret",
-      "redirectUris": ["*"],
+      "redirectUris": [
+        "http://localhost:8083/*",
+        "http://auth-service:8083/*"
+      ],
       "webOrigins": ["*"],
-      "standardFlowEnabled": true,
+      "publicClient": false,
       "directAccessGrantsEnabled": true,
-      "serviceAccountsEnabled": true
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "attributes": {
+        "backchannel.logout.session.required": "true",
+        "backchannel.logout.revoke.offline.tokens": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        }
+      ],
+      "defaultRoles": ["user"]
     },
     {
       "clientId": "parcel-service",
+      "name": "Parcel Service",
       "enabled": true,
       "publicClient": false,
       "secret": "parcel-service-secret",
       "redirectUris": ["*"],
-      "webOrigins": ["*"]
+      "webOrigins": ["*"],
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": true
     },
     {
       "clientId": "warehouse-service",
+      "name": "Warehouse Service",
       "enabled": true,
       "publicClient": false,
       "secret": "warehouse-service-secret",
       "redirectUris": ["*"],
-      "webOrigins": ["*"]
+      "webOrigins": ["*"],
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": true
+    },
+    {
+      "clientId": "realm-management",
+      "name": "${client_realm-management}",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "realm-management-secret",
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect"
     }
   ],
+
   "roles": {
     "realm": [
       {
-        "name": "admin",
+        "name": "USER",
+        "description": "Regular user role"
+      },
+      {
+        "name": "ADMIN",
         "description": "Administrator role"
       },
       {
-        "name": "customer",
+        "name": "MODERATOR",
+        "description": "Moderator role"
+      },
+      {
+        "name": "VENDOR",
+        "description": "Vendor role"
+      },
+      {
+        "name": "CUSTOMER",
         "description": "Customer role"
       },
       {
-        "name": "staff",
+        "name": "STAFF",
         "description": "Staff role"
       },
       {
-        "name": "driver",
+        "name": "DRIVER",
         "description": "Driver role"
       }
-    ]
+    ],
+    "client": {
+      "realm-management": [
+        {
+          "name": "view-users",
+          "description": "View users"
+        },
+        {
+          "name": "query-users",
+          "description": "Query users"
+        },
+        {
+          "name": "query-groups",
+          "description": "Query groups"
+        },
+        {
+          "name": "manage-users",
+          "description": "Manage users"
+        }
+      ]
+    }
   },
+
   "users": [
     {
       "username": "admin",
-      "email": "admin@example.com",
+      "email": "admin@parcel.com",
       "firstName": "System",
       "lastName": "Administrator",
       "enabled": true,
@@ -65,7 +153,10 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["admin"],
+      "realmRoles": ["ADMIN"],
+      "clientRoles": {
+        "realm-management": ["view-users", "query-users", "query-groups", "manage-users"]
+      },
       "emailVerified": true
     },
     {
@@ -81,26 +172,29 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["customer"],
+      "realmRoles": ["CUSTOMER"],
       "emailVerified": true
     }
   ],
+
   "groups": [
     {
       "name": "Administrators",
-      "realmRoles": ["admin"]
+      "realmRoles": ["ADMIN"]
     },
     {
       "name": "Customers",
-      "realmRoles": ["customer"]
+      "realmRoles": ["CUSTOMER"]
     },
     {
       "name": "Staff",
-      "realmRoles": ["staff"]
+      "realmRoles": ["STAFF"]
     },
     {
       "name": "Drivers",
-      "realmRoles": ["driver"]
+      "realmRoles": ["DRIVER"]
     }
-  ]
+  ],
+
+  "defaultRoles": ["USER"]
 }

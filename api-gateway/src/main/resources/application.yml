@@ -10,39 +10,8 @@ spring:
         locator:
           enabled: true
           lower-case-service-id: true
+      # Removed conflicting routes - let Java configuration handle them
       routes:
-        - id: auth-service
-          uri: lb://auth-service
-          predicates:
-            - Path=/api/auth/**
-        - id: pricing-service
-          uri: lb://pricing-service
-          predicates:
-            - Path=/api/pricing/**
-        - id: payment-service
-          uri: lb://payment-service
-          predicates:
-            - Path=/api/payments/**
-        - id: parcel-service
-          uri: lb://parcel-service
-          predicates:
-            - Path=/api/parcels/**
-        - id: consolidation-service
-          uri: lb://consolidation-service
-          predicates:
-            - Path=/api/consolidation/**
-        - id: warehouse-service
-          uri: lb://warehouse-service
-          predicates:
-            - Path=/api/warehouses/**
-        - id: eta-service
-          uri: lb://eta-service
-          predicates:
-            - Path=/api/eta/**
-        - id: chatbot-service
-          uri: lb://chatbot-service
-          predicates:
-            - Path=/api/chatbot/**
         - id: kafka-ui
           uri: http://kafka-ui:8080
           predicates:
@@ -50,7 +19,7 @@ spring:
           filters:
             - RewritePath=/kafka-ui/(?<segment>.*), /${segment}
         - id: keycloak-admin
-          uri: http://keycloak:8080
+          uri: http://localhost:8089
           predicates:
             - Path=/auth/admin/**
           filters:
@@ -72,7 +41,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://keycloak:8080/realms/parcel-realm
+          issuer-uri: http://localhost:8089/realms/parcel-realm
 
 eureka:
   client:

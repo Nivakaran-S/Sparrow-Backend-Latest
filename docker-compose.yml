@@ -117,10 +117,12 @@ services:
       - parcel-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/master"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8089/realms/master" ]
       interval: 30s
       timeout: 10s
       retries: 10
+      start_period: 120s   # give Keycloak 2 min to start before checking
+
 
   # Add Redis service
   redis:
@@ -188,7 +190,7 @@ services:
       KEYCLOAK_CLIENT: auth-service
       KEYCLOAK_SECRET: your-client-secret
       KEYCLOAK_ADMIN_USER: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin123
+      KEYCLOAK_ADMIN_PASSWORD: admin123  # Matches Keycloak container
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
       JAVA_OPTS: "-Xmx512m -Xms256m"
     depends_on:
@@ -200,7 +202,7 @@ services:
       - parcel-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8083/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 5
