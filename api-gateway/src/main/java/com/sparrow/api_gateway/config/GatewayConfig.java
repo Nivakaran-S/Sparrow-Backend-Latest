@@ -1,10 +1,12 @@
 package com.sparrow.api_gateway.config;
 
-
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.reactive.CorsWebFilter;
+import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 @Configuration
 public class GatewayConfig {
@@ -12,48 +14,75 @@ public class GatewayConfig {
     @Bean
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
-                // Auth Service Routes
+                // Spring Boot Services (using Eureka service discovery)
                 .route("auth-service", r -> r.path("/api/auth/**")
-                        .uri("lb://auth-service:8083"))
+                        .filters(f -> f.stripPrefix(2))
+                        .uri("lb://auth-service"))
 
-                // Pricing Service Routes
                 .route("pricing-service", r -> r.path("/api/pricing/**")
-                        .uri("lb://pricing-service:8086"))
+                        .filters(f -> f.stripPrefix(2))
+                        .uri("lb://pricing-service"))
 
-                // Payment Service Routes
                 .route("payment-service", r -> r.path("/api/payments/**")
-                        .uri("lb://payment-service:8090"))
+                        .filters(f -> f.stripPrefix(2))
+                        .uri("lb://payment-service"))
 
-                // Parcel Service Routes
-                .route("parcel-service", r -> r.path("/api/parcels/**")
-                        .uri("lb://parcel-service:8084"))
-
-                // Consolidation Service Routes
                 .route("consolidation-service", r -> r.path("/api/consolidation/**")
-                        .uri("lb://consolidation-service:8081"))
+                        .filters(f -> f.stripPrefix(2))
+                        .uri("lb://consolidation-service"))
 
-                // Warehouse Service Routes
                 .route("warehouse-service", r -> r.path("/api/warehouses/**")
-                        .uri("lb://warehouse-service:8082"))
+                        .filters(f -> f.stripPrefix(2))
+                        .uri("lb://warehouse-service"))
 
-                // ETA Service Routes
-                .route("eta-service", r -> r.path("/api/eta/**")
-                        .uri("lb://eta-service:8087"))
+                // Java Parcel Service (runs on port 8080 internally)
+                .route("parcel-service", r -> r.path("/api/parcels/**")
+                        .filters(f -> f.stripPrefix(2))
+                        .uri("http://parcel-service:8080"))
 
-                // Chatbot Service Routes
+                // Python Services (both run on port 8080 internally)
                 .route("chatbot-service", r -> r.path("/api/chatbot/**")
-                        .uri("lb://chatbot-service:8088"))
+                        .filters(f -> f.stripPrefix(2))
+                        .uri("http://sparrow-agent:8080"))  // Note: container name is sparrow-agent
 
-                // Kafka UI
+                .route("eta-service", r -> r.path("/api/eta/**")
+                        .filters(f -> f.stripPrefix(2))
+                        .uri("http://eta-service:8080"))
+
+                // External Services
                 .route("kafka-ui", r -> r.path("/kafka-ui/**")
                         .filters(f -> f.rewritePath("/kafka-ui/(?<segment>.*)", "/${segment}"))
                         .uri("http://kafka-ui:8080"))
 
-                // Keycloak Admin Console
                 .route("keycloak-admin", r -> r.path("/auth/admin/**")
                         .filters(f -> f.rewritePath("/auth/admin/(?<segment>.*)", "/admin/${segment}"))
                         .uri("http://keycloak:8080"))
 
                 .build();
+    }
+
+    @Bean
+    public CorsWebFilter corsWebFilter() {
+        CorsConfiguration corsConfig = new CorsConfiguration();
+
+        // Allow all origins (use specific domains in production)
+        corsConfig.addAllowedOriginPattern("*");
+
+        // Allow credentials (set to false if using "*" for origins)
+        corsConfig.setAllowCredentials(false);
+
+        // Allow all headers
+        corsConfig.addAllowedHeader("*");
+
+        // Allow all HTTP methods
+        corsConfig.addAllowedMethod("*");
+
+        // Set max age for preflight requests (in seconds)
+        corsConfig.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", corsConfig);
+
+        return new CorsWebFilter(source);
     }
 }

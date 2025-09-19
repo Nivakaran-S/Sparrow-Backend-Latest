@@ -1,10 +1,10 @@
 from flask import Flask, request, jsonify, render_template, session
+from flask_cors import CORS
 import uuid
 import logging
 from datetime import datetime
 import os
 import sys
-
 
 from src.graphs.finalAgentGraph import sparrowAgent
 from langchain_core.messages import HumanMessage
@@ -12,10 +12,19 @@ from langchain_core.messages import HumanMessage
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'your-secret-key-here')
 
+# Disable CSRF protection for API endpoints
+app.config['WTF_CSRF_ENABLED'] = False
+
+# Enable CORS for all routes
+CORS(app,
+     origins=["*"],  # Allow all origins (change to specific domains in production)
+     methods=["GET", "POST", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization"],
+     supports_credentials=False)  # Set to False when using "*" origins
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 conversations = {}
 
@@ -24,39 +33,51 @@ def index():
     """Serve the main chat interface"""
     return render_template('index.html')
 
-@app.route('/chat', methods=['POST'])
+@app.route('/chat', methods=['POST', 'OPTIONS'])
 def chat():
     """Handle chat messages"""
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        response = jsonify({})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        return response
+
     try:
         data = request.get_json()
         user_message = data.get('message', '').strip()
-        
+
         if not user_message:
             return jsonify({'success': False, 'error': 'Empty message'})
-        
-        # Get or create conversation thread
-        thread_id = session.get('thread_id')
+
+        # Get thread_id from request body or create new one
+        thread_id = data.get('thread_id')
         if not thread_id:
             thread_id = str(uuid.uuid4())
-            session['thread_id'] = thread_id
+            # Create new conversation
             conversations[thread_id] = {
                 'messages': [],
                 'created_at': datetime.now(),
                 'last_updated': datetime.now()
             }
-        
+
+        # Get existing conversation or create if not found
         conversation = conversations.get(thread_id, {
             'messages': [],
             'created_at': datetime.now(),
             'last_updated': datetime.now()
         })
-        
+
+        # Ensure conversation is stored
+        conversations[thread_id] = conversation
+
         # Prepare the state for the Sparrow Agent
         # Add the new user message to the conversation
         conversation['messages'].append(HumanMessage(content=user_message))
         conversation['last_updated'] = datetime.now()
         conversations[thread_id] = conversation
-        
+
         # Create the input state for Sparrow Agent
         sparrow_input = {
             'messages': conversation['messages'],
@@ -64,16 +85,16 @@ def chat():
             'query_brief': '',
             'final_message': ''
         }
-        
+
         logger.info(f"Processing message for thread {thread_id}: {user_message}")
-        
+
         # Run the Sparrow Agent
         result = sparrowAgent.invoke(sparrow_input)
-        
+
         # Extract the response
         response_message = ""
         status_info = ""
-        
+
         # Get the final message or the last AI message
         if result.get('final_message'):
             response_message = result['final_message']
@@ -84,30 +105,30 @@ def chat():
                 if hasattr(msg, 'content') and msg.content and msg.content != user_message:
                     response_message = msg.content
                     break
-        
+
         if not response_message:
             response_message = "I'm processing your request. Could you provide more details?"
-        
+
         # Add execution status information
         if result.get('execution_jobs'):
             status_info = f"Executed: {', '.join(result['execution_jobs'])}"
         elif result.get('notes'):
             # Get the last note as status
             status_info = result['notes'][-1] if result['notes'] else ""
-        
+
         # Update conversation with the agent's response
         conversation['messages'] = result.get('messages', conversation['messages'])
         conversations[thread_id] = conversation
-        
+
         logger.info(f"Response generated for thread {thread_id}: {response_message[:100]}...")
-        
+
         return jsonify({
             'success': True,
             'response': response_message,
             'status': status_info,
             'thread_id': thread_id
         })
-        
+
     except Exception as e:
         logger.error(f"Error in chat endpoint: {str(e)}", exc_info=True)
         return jsonify({
@@ -115,14 +136,25 @@ def chat():
             'error': f"An error occurred: {str(e)}"
         })
 
-@app.route('/new_conversation', methods=['POST'])
+@app.route('/new_conversation', methods=['POST', 'OPTIONS'])
 def new_conversation():
     """Start a new conversation thread"""
-    # Clear the session thread
-    session.pop('thread_id', None)
-    return jsonify({'success': True, 'message': 'New conversation started'})
+    if request.method == 'OPTIONS':
+        response = jsonify({})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        return response
 
-@app.route('/health')
+    # Clear the session thread and return new thread_id
+    new_thread_id = str(uuid.uuid4())
+    return jsonify({
+        'success': True,
+        'message': 'New conversation started',
+        'thread_id': new_thread_id
+    })
+
+@app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
     return jsonify({
@@ -144,29 +176,29 @@ if __name__ == '__main__':
     # Clean up old conversations periodically (simple cleanup)
     import threading
     import time
-    
+
     def cleanup_conversations():
         while True:
             time.sleep(3600)  # Clean up every hour
             cutoff = datetime.now().timestamp() - 24 * 3600  # 24 hours ago
-            
+
             threads_to_remove = []
             for thread_id, conv in conversations.items():
                 if conv['last_updated'].timestamp() < cutoff:
                     threads_to_remove.append(thread_id)
-            
+
             for thread_id in threads_to_remove:
                 del conversations[thread_id]
-                
+
             logger.info(f"Cleaned up {len(threads_to_remove)} old conversations")
-    
+
     # Start cleanup thread
     cleanup_thread = threading.Thread(target=cleanup_conversations, daemon=True)
     cleanup_thread.start()
-    
+
     # Run the Flask app
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    
+
     logger.info(f"Starting Sparrow Agent Flask app on port {port}")
     app.run(host='0.0.0.0', port=port, debug=debug)

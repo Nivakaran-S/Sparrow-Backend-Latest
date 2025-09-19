@@ -56,10 +56,12 @@ spring:
           filters:
             - RewritePath=/auth/admin/(?<segment>.*), /admin/${segment}
 
-  redis:
-    host: redis
-    port: 6379
-    password: redispass
+  data:
+    redis:
+      host: redis
+      port: 6379
+      password: redispass
+      timeout: 2000ms
 
   kafka:
     bootstrap-servers: kafka:9092

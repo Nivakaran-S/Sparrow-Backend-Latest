@@ -12,3 +12,4 @@ tavily-python
 flask
 uuid
 gunicorn
+flask_cors
