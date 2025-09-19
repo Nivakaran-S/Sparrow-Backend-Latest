@@ -37,6 +37,19 @@
       },
       "protocolMappers": [
         {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
           "name": "roles",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-usermodel-realm-role-mapper",
@@ -50,7 +63,8 @@
           }
         }
       ],
-      "defaultRoles": ["user"]
+      "defaultClientScopes": ["profile", "email", "roles"],
+      "optionalClientScopes": []
     },
     {
       "clientId": "parcel-service",
@@ -73,36 +87,43 @@
       "webOrigins": ["*"],
       "serviceAccountsEnabled": true,
       "directAccessGrantsEnabled": true
-    },
-    {
-      "clientId": "realm-management",
-      "name": "${client_realm-management}",
-      "enabled": true,
-      "clientAuthenticatorType": "client-secret",
-      "secret": "realm-management-secret",
-      "serviceAccountsEnabled": true,
-      "publicClient": false,
-      "protocol": "openid-connect"
     }
   ],
+
+  "clientScopes": [
+    {
+      "name": "roles",
+      "description": "OpenID Connect scope for add user roles to the access token",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ],
+
+  "defaultDefaultClientScopes": ["profile", "email", "roles"],
 
   "roles": {
     "realm": [
       {
-        "name": "USER",
-        "description": "Regular user role"
-      },
-      {
         "name": "ADMIN",
         "description": "Administrator role"
-      },
-      {
-        "name": "MODERATOR",
-        "description": "Moderator role"
-      },
-      {
-        "name": "VENDOR",
-        "description": "Vendor role"
       },
       {
         "name": "CUSTOMER",
@@ -116,27 +137,7 @@
         "name": "DRIVER",
         "description": "Driver role"
       }
-    ],
-    "client": {
-      "realm-management": [
-        {
-          "name": "view-users",
-          "description": "View users"
-        },
-        {
-          "name": "query-users",
-          "description": "Query users"
-        },
-        {
-          "name": "query-groups",
-          "description": "Query groups"
-        },
-        {
-          "name": "manage-users",
-          "description": "Manage users"
-        }
-      ]
-    }
+    ]
   },
 
   "users": [
@@ -153,10 +154,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["ADMIN"],
-      "clientRoles": {
-        "realm-management": ["view-users", "query-users", "query-groups", "manage-users"]
-      },
+      "realmRoles": ["ADMIN", "USER"],
       "emailVerified": true
     },
     {
@@ -172,7 +170,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["CUSTOMER"],
+      "realmRoles": ["CUSTOMER", "USER"],
       "emailVerified": true
     }
   ],
@@ -180,19 +178,19 @@
   "groups": [
     {
       "name": "Administrators",
-      "realmRoles": ["ADMIN"]
+      "realmRoles": ["ADMIN", "USER"]
     },
     {
       "name": "Customers",
-      "realmRoles": ["CUSTOMER"]
+      "realmRoles": ["CUSTOMER", "USER"]
     },
     {
       "name": "Staff",
-      "realmRoles": ["STAFF"]
+      "realmRoles": ["STAFF", "USER"]
     },
     {
       "name": "Drivers",
-      "realmRoles": ["DRIVER"]
+      "realmRoles": ["DRIVER", "USER"]
     }
   ],
 

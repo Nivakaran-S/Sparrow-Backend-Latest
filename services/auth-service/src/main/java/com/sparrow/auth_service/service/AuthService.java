@@ -45,6 +45,7 @@ public class AuthService {
     private String clientSecret;
 
     private final Keycloak adminKeycloak;
+    private final KeycloakService keycloakService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -71,6 +72,9 @@ public class AuthService {
                 throw new RuntimeException("User not found after successful login");
             }
 
+            // FIXED: Get user roles using KeycloakService
+            List<String> userRoles = keycloakService.getUserRoles(user.getId());
+
             // Build response
             AuthResponse response = new AuthResponse();
             response.setAccessToken(tokenResponse.getToken());
@@ -81,11 +85,10 @@ public class AuthService {
             response.setEmail(user.getEmail());
             response.setUserId(user.getId());
 
-            if (user.getRealmRoles() != null) {
-                response.setRoles(user.getRealmRoles());
-            }
+            // FIXED: Set the actual user roles from KeycloakService
+            response.setRoles(userRoles);
 
-            log.info("User {} logged in successfully", request.getUsername());
+            log.info("User {} logged in successfully with roles: {}", request.getUsername(), userRoles);
             return response;
 
         } catch (NotAuthorizedException e) {
@@ -132,6 +135,9 @@ public class AuthService {
                 throw new RuntimeException("User not found during token refresh");
             }
 
+            // FIXED: Get user roles using KeycloakService
+            List<String> userRoles = keycloakService.getUserRoles(user.getId());
+
             AuthResponse authResponse = new AuthResponse();
             authResponse.setAccessToken(accessToken);
             authResponse.setRefreshToken(newRefreshToken);
@@ -140,11 +146,11 @@ public class AuthService {
             authResponse.setUsername(user.getUsername());
             authResponse.setEmail(user.getEmail());
             authResponse.setUserId(user.getId());
-            if (user.getRealmRoles() != null) {
-                authResponse.setRoles(user.getRealmRoles());
-            }
 
-            log.info("Token refreshed successfully for user: {}", username);
+            // FIXED: Set the actual user roles from KeycloakService
+            authResponse.setRoles(userRoles);
+
+            log.info("Token refreshed successfully for user: {} with roles: {}", username, userRoles);
             return authResponse;
 
         } catch (Exception e) {
@@ -155,9 +161,11 @@ public class AuthService {
 
     private UserRepresentation findUserByUsername(String username) {
         try {
-            return adminKeycloak.realm(realm).users()
-                    .search(username, null, null, null, 0, 1)
-                    .stream()
+            List<UserRepresentation> users = adminKeycloak.realm(realm).users()
+                    .search(username, null, null, null, 0, 1);
+
+            return users.stream()
+                    .filter(u -> username.equals(u.getUsername()))
                     .findFirst()
                     .orElse(null);
         } catch (Exception e) {

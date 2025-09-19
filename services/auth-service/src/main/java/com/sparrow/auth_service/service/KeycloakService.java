@@ -81,13 +81,24 @@ public class KeycloakService {
                 }
 
                 String userId = CreatedResponseUtil.getCreatedId(response);
+                log.info("User created with ID: {}", userId);
 
                 // Assign roles if specified
                 if (request.getRoles() != null && !request.getRoles().isEmpty()) {
                     try {
                         assignRolesToUser(userId, request.getRoles());
+                        log.info("Successfully assigned roles {} to user {}", request.getRoles(), userId);
                     } catch (Exception e) {
-                        log.warn("Failed to assign roles to user {}, but user was created: {}", userId, e.getMessage());
+                        log.error("Failed to assign roles to user {}: {}", userId, e.getMessage(), e);
+                        // Don't throw exception here - user was created successfully
+                    }
+                } else {
+                    // Assign default CUSTOMER role if no roles specified
+                    try {
+                        assignRolesToUser(userId, Collections.singletonList("CUSTOMER"));
+                        log.info("Assigned default CUSTOMER role to user {}", userId);
+                    } catch (Exception e) {
+                        log.warn("Failed to assign default CUSTOMER role to user {}: {}", userId, e.getMessage());
                     }
                 }
 
@@ -106,12 +117,15 @@ public class KeycloakService {
             UserResource userResource = realmResource.users().get(userId);
             UserRepresentation userRep = userResource.toRepresentation();
 
-            // Get user roles
-            List<RoleRepresentation> realmRoles = userResource.roles().realmLevel().listAll();
-            List<String> roleNames = realmRoles.stream()
+            // Get user roles - FIXED: Get only effective realm roles, not all roles
+            List<RoleRepresentation> effectiveRealmRoles = userResource.roles().realmLevel().listEffective();
+            List<String> roleNames = effectiveRealmRoles.stream()
                     .map(RoleRepresentation::getName)
+                    // Filter out default Keycloak roles
+                    .filter(roleName -> !roleName.equals("default-roles-" + realm) && !roleName.equals("offline_access") && !roleName.equals("uma_authorization"))
                     .collect(Collectors.toList());
 
+            log.debug("User {} has effective roles: {}", userRep.getUsername(), roleNames);
             return mapToUserResponse(userRep, roleNames);
         } catch (Exception e) {
             log.error("Error getting user by ID: {}", userId, e);
@@ -130,9 +144,10 @@ public class KeycloakService {
                     .map(userRep -> {
                         try {
                             UserResource userResource = realmResource.users().get(userRep.getId());
-                            List<RoleRepresentation> realmRoles = userResource.roles().realmLevel().listAll();
-                            List<String> roleNames = realmRoles.stream()
+                            List<RoleRepresentation> effectiveRealmRoles = userResource.roles().realmLevel().listEffective();
+                            List<String> roleNames = effectiveRealmRoles.stream()
                                     .map(RoleRepresentation::getName)
+                                    .filter(rName -> !rName.equals("default-roles-" + realm) && !rName.equals("offline_access") && !rName.equals("uma_authorization"))
                                     .collect(Collectors.toList());
                             return mapToUserResponse(userRep, roleNames);
                         } catch (Exception e) {
@@ -152,24 +167,28 @@ public class KeycloakService {
             RealmResource realmResource = getRealmResource();
             UserResource userResource = realmResource.users().get(userId);
 
-            List<RoleRepresentation> rolesToAdd = roleNames.stream()
-                    .map(roleName -> {
-                        try {
-                            return realmResource.roles().get(roleName).toRepresentation();
-                        } catch (Exception e) {
-                            log.warn("Role {} not found, skipping", roleName);
-                            return null;
-                        }
-                    })
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
+            List<RoleRepresentation> rolesToAdd = new ArrayList<>();
+
+            for (String roleName : roleNames) {
+                try {
+                    RoleRepresentation role = realmResource.roles().get(roleName).toRepresentation();
+                    rolesToAdd.add(role);
+                    log.debug("Found role {} for assignment", roleName);
+                } catch (Exception e) {
+                    log.warn("Role {} not found in realm, skipping. Error: {}", roleName, e.getMessage());
+                }
+            }
 
             if (!rolesToAdd.isEmpty()) {
                 userResource.roles().realmLevel().add(rolesToAdd);
-                log.info("Assigned roles {} to user {}", roleNames, userId);
+                log.info("Successfully assigned roles {} to user {}",
+                        rolesToAdd.stream().map(RoleRepresentation::getName).collect(Collectors.toList()),
+                        userId);
+            } else {
+                log.warn("No valid roles found to assign to user {}", userId);
             }
         } catch (Exception e) {
-            log.error("Error assigning roles to user: {}", userId, e);
+            log.error("Error assigning roles {} to user {}: {}", roleNames, userId, e.getMessage(), e);
             throw new RuntimeException("Failed to assign roles: " + e.getMessage());
         }
     }
@@ -185,6 +204,25 @@ public class KeycloakService {
         } catch (Exception e) {
             log.error("Error disabling user: {}", userId, e);
             throw new RuntimeException("Failed to disable user: " + e.getMessage());
+        }
+    }
+
+    public List<String> getUserRoles(String userId) {
+        try {
+            RealmResource realmResource = getRealmResource();
+            UserResource userResource = realmResource.users().get(userId);
+
+            List<RoleRepresentation> effectiveRealmRoles = userResource.roles().realmLevel().listEffective();
+            List<String> roleNames = effectiveRealmRoles.stream()
+                    .map(RoleRepresentation::getName)
+                    .filter(roleName -> !roleName.equals("default-roles-" + realm) && !roleName.equals("offline_access") && !roleName.equals("uma_authorization"))
+                    .collect(Collectors.toList());
+
+            log.debug("User {} effective roles: {}", userId, roleNames);
+            return roleNames;
+        } catch (Exception e) {
+            log.error("Error getting user roles for user: {}", userId, e);
+            return Collections.emptyList();
         }
     }
 
