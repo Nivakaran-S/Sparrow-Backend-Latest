@@ -15,7 +15,7 @@ public class CorsConfig {
 
         // Allow specific origins
         corsConfig.addAllowedOrigin("http://localhost:3000");
-        corsConfig.addAllowedOrigin("http://127.0.0.1:3000");
+
 
         // Allow all headers
         corsConfig.addAllowedHeader("*");

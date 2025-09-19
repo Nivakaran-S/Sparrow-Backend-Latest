@@ -134,11 +134,11 @@ services:
       - "8083:8083"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      KEYCLOAK_URL: http://keycloak:8080
-      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/parcel-realm
+      KEYCLOAK_URL: http://keycloak:8080  # ← FIXED: Use container port 8080
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/parcel-realm  # ← FIXED: Use container port 8080
       KEYCLOAK_REALM: parcel-realm
       KEYCLOAK_CLIENT: auth-service
-      KEYCLOAK_SECRET: your-client-secret
+      KEYCLOAK_SECRET: your-client-secret  # ← UPDATE: Replace with actual secret from Keycloak admin
       KEYCLOAK_ADMIN_USER: admin
       KEYCLOAK_ADMIN_PASSWORD: admin123
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
