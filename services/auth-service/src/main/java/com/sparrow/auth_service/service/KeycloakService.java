@@ -18,7 +18,6 @@ import org.springframework.stereotype.Service;
 import javax.ws.rs.core.Response;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -33,73 +32,77 @@ public class KeycloakService {
     private String realm;
 
     public UserResponse createUser(UserRegistrationRequest request) {
-        RealmResource realmResource = keycloak.realm(realm);
-        UsersResource usersResource = realmResource.users();
+        try {
+            RealmResource realmResource = getRealmResource();
+            UsersResource usersResource = realmResource.users();
 
-        // Check if user already exists
-        List<UserRepresentation> existingUsers = usersResource.search(request.getUsername(), true);
-        if (!existingUsers.isEmpty()) {
-            throw new RuntimeException("User with username " + request.getUsername() + " already exists");
-        }
-
-        UserRepresentation user = new UserRepresentation();
-        user.setUsername(request.getUsername());
-        user.setEmail(request.getEmail());
-        user.setFirstName(request.getFirstName());
-        user.setLastName(request.getLastName());
-        user.setEnabled(true);
-        user.setEmailVerified(true);
-
-        // Set credentials
-        CredentialRepresentation credential = new CredentialRepresentation();
-        credential.setType(CredentialRepresentation.PASSWORD);
-        credential.setValue(request.getPassword());
-        credential.setTemporary(false);
-        user.setCredentials(Collections.singletonList(credential));
-
-        // Set attributes if available
-        if (request.getPhoneNumber() != null || request.getAddress() != null) {
-            Map<String, List<String>> attributes = new HashMap<>();
-            if (request.getPhoneNumber() != null) {
-                attributes.put("phoneNumber", Collections.singletonList(request.getPhoneNumber()));
+            // Check if user already exists
+            List<UserRepresentation> existingUsers = usersResource.search(request.getUsername(), true);
+            if (!existingUsers.isEmpty()) {
+                throw new RuntimeException("User with username " + request.getUsername() + " already exists");
             }
-            if (request.getAddress() != null) {
-                attributes.put("address", Collections.singletonList(request.getAddress()));
-            }
-            user.setAttributes(attributes);
-        }
 
-        // Create user
-        try (Response response = usersResource.create(user)) {
-            if (response.getStatus() != Response.Status.CREATED.getStatusCode()) {
-                String errorMessage = "Failed to create user: " + response.getStatusInfo().getReasonPhrase();
-                if (response.hasEntity()) {
-                    errorMessage += " - " + response.readEntity(String.class);
+            UserRepresentation user = new UserRepresentation();
+            user.setUsername(request.getUsername());
+            user.setEmail(request.getEmail());
+            user.setFirstName(request.getFirstName());
+            user.setLastName(request.getLastName());
+            user.setEnabled(true);
+            user.setEmailVerified(true);
+
+            // Set credentials
+            CredentialRepresentation credential = new CredentialRepresentation();
+            credential.setType(CredentialRepresentation.PASSWORD);
+            credential.setValue(request.getPassword());
+            credential.setTemporary(false);
+            user.setCredentials(Collections.singletonList(credential));
+
+            // Set attributes if available
+            if (request.getPhoneNumber() != null || request.getAddress() != null) {
+                Map<String, List<String>> attributes = new HashMap<>();
+                if (request.getPhoneNumber() != null) {
+                    attributes.put("phoneNumber", Collections.singletonList(request.getPhoneNumber()));
                 }
-                log.error(errorMessage);
-                throw new RuntimeException(errorMessage);
-            }
-
-            String userId = CreatedResponseUtil.getCreatedId(response);
-
-            // Assign roles if specified
-            if (request.getRoles() != null && !request.getRoles().isEmpty()) {
-                try {
-                    assignRolesToUser(userId, request.getRoles());
-                } catch (Exception e) {
-                    log.warn("Failed to assign roles to user {}, but user was created: {}", userId, e.getMessage());
-                    // Continue without roles - user was created successfully
+                if (request.getAddress() != null) {
+                    attributes.put("address", Collections.singletonList(request.getAddress()));
                 }
+                user.setAttributes(attributes);
             }
 
-            log.info("User {} created successfully with ID: {}", request.getUsername(), userId);
-            return getUserById(userId);
+            // Create user
+            try (Response response = usersResource.create(user)) {
+                if (response.getStatus() != Response.Status.CREATED.getStatusCode()) {
+                    String errorMessage = "Failed to create user: " + response.getStatusInfo().getReasonPhrase();
+                    if (response.hasEntity()) {
+                        errorMessage += " - " + response.readEntity(String.class);
+                    }
+                    log.error(errorMessage);
+                    throw new RuntimeException(errorMessage);
+                }
+
+                String userId = CreatedResponseUtil.getCreatedId(response);
+
+                // Assign roles if specified
+                if (request.getRoles() != null && !request.getRoles().isEmpty()) {
+                    try {
+                        assignRolesToUser(userId, request.getRoles());
+                    } catch (Exception e) {
+                        log.warn("Failed to assign roles to user {}, but user was created: {}", userId, e.getMessage());
+                    }
+                }
+
+                log.info("User {} created successfully with ID: {}", request.getUsername(), userId);
+                return getUserById(userId);
+            }
+        } catch (Exception e) {
+            log.error("Error creating user: {}", request.getUsername(), e);
+            throw new RuntimeException("Failed to create user: " + e.getMessage());
         }
     }
 
     public UserResponse getUserById(String userId) {
         try {
-            RealmResource realmResource = keycloak.realm(realm);
+            RealmResource realmResource = getRealmResource();
             UserResource userResource = realmResource.users().get(userId);
             UserRepresentation userRep = userResource.toRepresentation();
 
@@ -118,7 +121,7 @@ public class KeycloakService {
 
     public List<UserResponse> getUsersByRole(String roleName) {
         try {
-            RealmResource realmResource = keycloak.realm(realm);
+            RealmResource realmResource = getRealmResource();
 
             // Get all users with the specified role
             List<UserRepresentation> users = realmResource.roles().get(roleName).getUserMembers();
@@ -146,7 +149,7 @@ public class KeycloakService {
 
     public void assignRolesToUser(String userId, List<String> roleNames) {
         try {
-            RealmResource realmResource = keycloak.realm(realm);
+            RealmResource realmResource = getRealmResource();
             UserResource userResource = realmResource.users().get(userId);
 
             List<RoleRepresentation> rolesToAdd = roleNames.stream()
@@ -173,7 +176,7 @@ public class KeycloakService {
 
     public void disableUser(String userId) {
         try {
-            RealmResource realmResource = keycloak.realm(realm);
+            RealmResource realmResource = getRealmResource();
             UserResource userResource = realmResource.users().get(userId);
             UserRepresentation user = userResource.toRepresentation();
             user.setEnabled(false);
@@ -182,6 +185,15 @@ public class KeycloakService {
         } catch (Exception e) {
             log.error("Error disabling user: {}", userId, e);
             throw new RuntimeException("Failed to disable user: " + e.getMessage());
+        }
+    }
+
+    private RealmResource getRealmResource() {
+        try {
+            return keycloak.realm(realm);
+        } catch (Exception e) {
+            log.error("Failed to get realm resource for realm: {}", realm, e);
+            throw new RuntimeException("Failed to access Keycloak realm: " + realm + ". Error: " + e.getMessage());
         }
     }
 
@@ -209,10 +221,10 @@ public class KeycloakService {
         // Set attributes
         if (userRep.getAttributes() != null) {
             Map<String, List<String>> attributes = userRep.getAttributes();
-            if (attributes.containsKey("phoneNumber")) {
+            if (attributes.containsKey("phoneNumber") && !attributes.get("phoneNumber").isEmpty()) {
                 response.setPhoneNumber(attributes.get("phoneNumber").get(0));
             }
-            if (attributes.containsKey("address")) {
+            if (attributes.containsKey("address") && !attributes.get("address").isEmpty()) {
                 response.setAddress(attributes.get("address").get(0));
             }
         }

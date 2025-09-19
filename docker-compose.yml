@@ -106,23 +106,58 @@ services:
       KC_HTTP_ENABLED: 'true'
       KC_HOSTNAME_STRICT: 'false'
       KC_HOSTNAME_STRICT_HTTPS: 'false'
-      KC_IMPORT: /opt/keycloak/data/import/realm.json
+      KC_LOG_LEVEL: INFO
     ports:
       - "8089:8080"
     volumes:
       - keycloak_data:/opt/keycloak/data
       - ./keycloak/realm-config:/opt/keycloak/data/import
-    command: ["start-dev", "--import-realm"]
+    command:
+      - "start-dev"
+      - "--import-realm"
     networks:
       - parcel-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8089/realms/master" ]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/master"]
+      interval: 30s
+      timeout: 10s
+      retries: 15
+      start_period: 120s
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/parcel-realm
+      KEYCLOAK_REALM: parcel-realm
+      KEYCLOAK_CLIENT: auth-service
+      KEYCLOAK_SECRET: your-client-secret
+      KEYCLOAK_ADMIN_USER: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin123
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      JAVA_OPTS: "-Xmx512m -Xms256m"
+      LOGGING_LEVEL_COM_SPARROW_AUTH_SERVICE: DEBUG
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - parcel-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 10
-      start_period: 120s   # give Keycloak 2 min to start before checking
-
+      start_period: 120s
 
   # Add Redis service
   redis:
@@ -171,38 +206,6 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-
-  auth-service:
-    build:
-      context: ./services/auth-service
-      dockerfile: Dockerfile
-    container_name: auth-service
-    ports:
-      - "8083:8083"
-    environment:
-      KEYCLOAK_URL: http://keycloak:8080
-      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/parcel-realm
-      KEYCLOAK_REALM: parcel-realm
-      KEYCLOAK_CLIENT: auth-service
-      KEYCLOAK_SECRET: your-client-secret
-      KEYCLOAK_ADMIN_USER: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin123  # Matches Keycloak container
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
-      JAVA_OPTS: "-Xmx512m -Xms256m"
-    depends_on:
-      keycloak:
-        condition: service_healthy
-      eureka-server:
-        condition: service_healthy
-    networks:
-      - parcel-network
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8083/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 5

@@ -4,14 +4,32 @@ server:
 spring:
   application:
     name: auth-service
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://127.0.0.1:3000"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+            maxAge: 3600
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/parcel-realm}  # Change to keycloak:8080
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/parcel-realm}
 
 keycloak:
-  auth-server-url: ${KEYCLOAK_URL:http://keycloak:8080}  # This is correct
+  auth-server-url: ${KEYCLOAK_URL:http://localhost:8080}
   realm: ${KEYCLOAK_REALM:parcel-realm}
 
   # For resource server
@@ -19,7 +37,7 @@ keycloak:
   credentials:
     secret: ${KEYCLOAK_SECRET:your-client-secret}
 
-  # For admin client
+  # For admin client - Use master realm for admin operations
   admin:
     client-id: ${KEYCLOAK_ADMIN_CLIENT:admin-cli}
     username: ${KEYCLOAK_ADMIN_USER:admin}
@@ -47,16 +65,17 @@ eureka:
 
 logging:
   level:
-    com.sparrow.authservice: DEBUG
-    org.keycloak: DEBUG  # Change to DEBUG for troubleshooting
+    com.sparrow.auth_service: DEBUG
+    org.keycloak: INFO
     org.springdoc: INFO
+    root: INFO
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info,metrics
-      base-path: /management
+      base-path: /actuator
   endpoint:
     health:
       show-details: always

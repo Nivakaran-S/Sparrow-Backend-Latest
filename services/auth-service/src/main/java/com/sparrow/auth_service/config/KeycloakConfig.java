@@ -18,15 +18,6 @@ public class KeycloakConfig {
     @Value("${keycloak.auth-server-url}")
     private String serverUrl;
 
-    @Value("${keycloak.realm}")
-    private String realm;
-
-    @Value("${keycloak.admin.client-id:admin-cli}")
-    private String adminClientId;
-
-    @Value("${keycloak.admin.client-secret:}")
-    private String adminClientSecret;
-
     @Value("${keycloak.admin.username}")
     private String adminUsername;
 
@@ -36,38 +27,49 @@ public class KeycloakConfig {
     @Bean
     @Lazy
     public Keycloak keycloakAdmin() {
-        int maxRetries = 5;
-        int baseDelay = 2000; // 2 seconds base delay
-        int maxDelay = 10000; // 10 seconds max delay
+        int maxRetries = 10;
+        int baseDelay = 5000; // 5 seconds base delay
+        int maxDelay = 30000; // 30 seconds max delay
 
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 logger.info("Keycloak connection attempt {}/{} to {}", attempt, maxRetries, serverUrl);
 
+                // Use master realm for admin operations
                 Keycloak keycloak = KeycloakBuilder.builder()
                         .serverUrl(serverUrl)
-                        .realm(realm)
+                        .realm("master")  // Connect to master realm for admin operations
                         .grantType(OAuth2Constants.PASSWORD)
-                        .clientId(adminClientId)
+                        .clientId("admin-cli")
                         .username(adminUsername)
                         .password(adminPassword)
                         .build();
 
-                // Test the connection by getting realm info
-                keycloak.realm(realm).toRepresentation();
+                // Test the connection by getting master realm info
+                keycloak.realm("master").toRepresentation();
 
-                logger.info("✅ Successfully connected to Keycloak admin client");
+                // Also test if we can access the target realm
+                try {
+                    keycloak.realm("parcel-realm").toRepresentation();
+                    logger.info("✅ Successfully connected to Keycloak admin client and verified parcel-realm access");
+                } catch (Exception e) {
+                    logger.warn("Connected to Keycloak but parcel-realm may not be ready yet: {}", e.getMessage());
+                    // Continue anyway - the realm might be imported later
+                }
+
                 return keycloak;
 
             } catch (Exception e) {
+                logger.warn("Keycloak connection attempt {} failed: {}", attempt, e.getMessage());
+
                 if (attempt == maxRetries) {
-                    logger.error("❌ Failed to connect to Keycloak after {} attempts: {}", maxRetries, e.getMessage());
-                    throw new RuntimeException("Keycloak initialization failed: " + e.getMessage(), e);
+                    logger.error("❌ Failed to connect to Keycloak after {} attempts. Last error: {}", maxRetries, e.getMessage());
+                    throw new RuntimeException("Keycloak initialization failed after " + maxRetries + " attempts: " + e.getMessage(), e);
                 }
 
                 // Exponential backoff with jitter
-                int delay = Math.min(baseDelay * (int) Math.pow(2, attempt - 1), maxDelay);
-                logger.warn("Keycloak connection failed, retrying in {} ms: {}", delay, e.getMessage());
+                int delay = Math.min(baseDelay * attempt, maxDelay);
+                logger.info("Retrying Keycloak connection in {} ms...", delay);
 
                 try {
                     Thread.sleep(delay);

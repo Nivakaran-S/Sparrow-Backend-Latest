@@ -61,28 +61,5 @@ public class GatewayConfig {
                 .build();
     }
 
-    @Bean
-    public CorsWebFilter corsWebFilter() {
-        CorsConfiguration corsConfig = new CorsConfiguration();
 
-        // Allow all origins (use specific domains in production)
-        corsConfig.addAllowedOriginPattern("*");
-
-        // Allow credentials (set to false if using "*" for origins)
-        corsConfig.setAllowCredentials(false);
-
-        // Allow all headers
-        corsConfig.addAllowedHeader("*");
-
-        // Allow all HTTP methods
-        corsConfig.addAllowedMethod("*");
-
-        // Set max age for preflight requests (in seconds)
-        corsConfig.setMaxAge(3600L);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", corsConfig);
-
-        return new CorsWebFilter(source);
-    }
 }
