@@ -1,10 +1,16 @@
 # services/auth-service/src/main/resources/application.yml
 server:
   port: 8083
+  servlet:
+    context-path: /
 
 spring:
   application:
     name: auth-service
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:default}
+
   cloud:
     gateway:
       globalcors:
@@ -12,21 +18,25 @@ spring:
           '[/**]':
             allowedOrigins:
               - "http://localhost:3000"
+              - "http://localhost:8080"
             allowedMethods:
               - GET
               - POST
               - PUT
               - DELETE
+              - PATCH
               - OPTIONS
             allowedHeaders:
               - "*"
             allowCredentials: true
             maxAge: 3600
+
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8089/realms/parcel-realm}
+          jwk-set-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8089/realms/parcel-realm}/protocol/openid-connect/certs
 
 keycloak:
   auth-server-url: ${KEYCLOAK_URL:http://keycloak:8080}
@@ -44,6 +54,7 @@ keycloak:
     password: ${KEYCLOAK_ADMIN_PASSWORD:admin123}
     client-secret: ${KEYCLOAK_ADMIN_SECRET:}
 
+# OpenAPI/Swagger Configuration
 springdoc:
   api-docs:
     path: /api-docs
@@ -57,17 +68,20 @@ springdoc:
     config-url: /api-docs/swagger-config
     urls-primary-name: Auth Service API
     disable-swagger-default-url: false
+  show-actuator: true
 
-# ADD/UPDATE: Improved Eureka configuration
+# Eureka Configuration
 eureka:
   client:
     service-url:
-      defaultZone: http://eureka-server:8761/eureka/
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://eureka-server:8761/eureka/}
     register-with-eureka: true
     fetch-registry: true
     registry-fetch-interval-seconds: 5
+    healthcheck:
+      enabled: true
   instance:
-    hostname: auth-service
+    hostname: ${HOSTNAME:auth-service}
     prefer-ip-address: false
     lease-renewal-interval-in-seconds: 10
     lease-expiration-duration-in-seconds: 30
@@ -75,26 +89,136 @@ eureka:
     status-page-url-path: /actuator/info
     metadata-map:
       management.context-path: /actuator
+      version: ${spring.application.version:1.0.0}
+      description: "Authentication and User Management Service"
 
-logging:
-  level:
-    com.sparrow.auth_service: DEBUG
-    org.keycloak: INFO
-    org.springdoc: INFO
-    com.netflix.eureka: DEBUG
-    com.netflix.discovery: DEBUG
-    root: INFO
-
+# Actuator Configuration
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
       base-path: /actuator
   endpoint:
     health:
       show-details: always
+      show-components: always
     metrics:
       enabled: true
     info:
       enabled: true
+  health:
+    keycloak:
+      enabled: true
+  info:
+    env:
+      enabled: true
+    git:
+      enabled: true
+    build:
+      enabled: true
+
+# Application Information
+info:
+  app:
+    name: ${spring.application.name}
+    description: "Authentication and User Management Service for Parcel Consolidation Platform"
+    version: "1.0.0"
+    author: "Sparrow Team"
+  keycloak:
+    realm: ${keycloak.realm}
+    server-url: ${keycloak.auth-server-url}
+
+# Logging Configuration
+logging:
+  level:
+    com.sparrow.auth_service: ${LOG_LEVEL_AUTH_SERVICE:DEBUG}
+    org.keycloak: ${LOG_LEVEL_KEYCLOAK:INFO}
+    org.springdoc: ${LOG_LEVEL_SPRINGDOC:INFO}
+    com.netflix.eureka: ${LOG_LEVEL_EUREKA:INFO}
+    com.netflix.discovery: ${LOG_LEVEL_DISCOVERY:INFO}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:INFO}
+    org.springframework.web: ${LOG_LEVEL_WEB:INFO}
+    root: ${LOG_LEVEL_ROOT:INFO}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Custom Application Properties
+app:
+  security:
+    # JWT token expiration times (in seconds)
+    access-token-expiry: 900        # 15 minutes
+    refresh-token-expiry: 86400     # 24 hours
+
+    # Password policy
+    password:
+      min-length: 8
+      require-uppercase: true
+      require-lowercase: true
+      require-numbers: true
+      require-special-chars: false
+
+    # Account lockout policy
+    lockout:
+      max-attempts: 5
+      lockout-duration: 300    # 5 minutes
+
+  audit:
+    enabled: true
+    max-logs-in-memory: 10000
+
+  user-management:
+    default-role: "CUSTOMER"
+    allowed-roles:
+      - "ADMIN"
+      - "CUSTOMER"
+      - "STAFF"
+      - "DRIVER"
+    admin-can-create-admin: false
+
+---
+# Docker Profile
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+keycloak:
+  auth-server-url: http://keycloak:8080
+
+logging:
+  level:
+    com.sparrow.auth_service: INFO
+    org.springframework.security: WARN
+
+---
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: development
+
+keycloak:
+  auth-server-url: http://localhost:8089
+
+logging:
+  level:
+    com.sparrow.auth_service: DEBUG
+    org.springframework.security: DEBUG
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: production
+
+keycloak:
+  auth-server-url: ${KEYCLOAK_URL}
+
+logging:
+  level:
+    com.sparrow.auth_service: INFO
+    org.springframework.security: WARN
+    root: WARN

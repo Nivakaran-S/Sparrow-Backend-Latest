@@ -3,8 +3,6 @@ package com.sparrow.auth_service.service;
 import com.sparrow.auth_service.dto.AuthResponse;
 import com.sparrow.auth_service.dto.LoginRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.OAuth2Constants;
@@ -72,7 +70,12 @@ public class AuthService {
                 throw new RuntimeException("User not found after successful login");
             }
 
-            // FIXED: Get user roles using KeycloakService
+            // Check if user is enabled
+            if (!user.isEnabled()) {
+                throw new RuntimeException("User account is disabled");
+            }
+
+            // Get user roles using KeycloakService
             List<String> userRoles = keycloakService.getUserRoles(user.getId());
 
             // Build response
@@ -84,8 +87,6 @@ public class AuthService {
             response.setUsername(user.getUsername());
             response.setEmail(user.getEmail());
             response.setUserId(user.getId());
-
-            // FIXED: Set the actual user roles from KeycloakService
             response.setRoles(userRoles);
 
             log.info("User {} logged in successfully with roles: {}", request.getUsername(), userRoles);
@@ -135,7 +136,7 @@ public class AuthService {
                 throw new RuntimeException("User not found during token refresh");
             }
 
-            // FIXED: Get user roles using KeycloakService
+            // Get user roles using KeycloakService
             List<String> userRoles = keycloakService.getUserRoles(user.getId());
 
             AuthResponse authResponse = new AuthResponse();
@@ -146,8 +147,6 @@ public class AuthService {
             authResponse.setUsername(user.getUsername());
             authResponse.setEmail(user.getEmail());
             authResponse.setUserId(user.getId());
-
-            // FIXED: Set the actual user roles from KeycloakService
             authResponse.setRoles(userRoles);
 
             log.info("Token refreshed successfully for user: {} with roles: {}", username, userRoles);
@@ -156,6 +155,36 @@ public class AuthService {
         } catch (Exception e) {
             log.error("Token refresh failed", e);
             throw new RuntimeException("Invalid refresh token: " + e.getMessage());
+        }
+    }
+
+    public void logout(String refreshToken) {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+            params.add("client_id", clientId);
+            params.add("client_secret", clientSecret);
+            params.add("refresh_token", refreshToken);
+
+            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
+
+            String logoutUrl = serverUrl + "/realms/" + realm + "/protocol/openid-connect/logout";
+
+            ResponseEntity<String> responseEntity = restTemplate.postForEntity(logoutUrl, request, String.class);
+
+            if (responseEntity.getStatusCode().is2xxSuccessful()) {
+                log.info("User logged out successfully");
+            } else {
+                log.warn("Logout may not have been fully successful: {}", responseEntity.getStatusCode());
+            }
+
+        } catch (Exception e) {
+            log.error("Logout failed", e);
+            throw new RuntimeException("Logout failed: " + e.getMessage());
         }
     }
 
