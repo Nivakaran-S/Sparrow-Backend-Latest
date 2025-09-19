@@ -164,6 +164,7 @@
       "email": "customer1@example.com",
       "firstName": "John",
       "lastName": "Doe",
+      "roles": "customer",
       "enabled": true,
       "credentials": [
         {
