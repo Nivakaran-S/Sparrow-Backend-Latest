@@ -35,6 +35,16 @@ spring:
 
   # MVC Configuration
 
+  # Jackson Configuration for Keycloak compatibility
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false  # Critical for Keycloak version compatibility
+    serialization:
+      fail-on-empty-beans: false
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: UTC
+    default-property-inclusion: non_null
+
   # Eureka Client Configuration
   cloud:
     loadbalancer:
@@ -45,14 +55,17 @@ spring:
     endpoints:
       web:
         exposure:
-          include: health,info,metrics,env,beans
+          include: health,info,metrics,env,beans,prometheus
     endpoint:
       health:
         show-details: always
+        show-components: always
       metrics:
         enabled: true
     health:
       circuitbreakers:
+        enabled: true
+      defaults:
         enabled: true
 
   # Logging Configuration
@@ -63,20 +76,19 @@ spring:
       org.keycloak: DEBUG
       org.hibernate.sql: DEBUG
       org.hibernate.type: TRACE
+      io.github.resilience4j: DEBUG
     pattern:
       console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-
-  # Jackson Configuration
-  jackson:
-    date-format: yyyy-MM-dd HH:mm:ss
-    time-zone: UTC
-    default-property-inclusion: non_null
 
 # Server Configuration
 server:
   port: 8083
   servlet:
     context-path: /
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024
 
 # Eureka Client Configuration
 eureka:
@@ -95,9 +107,9 @@ eureka:
     status-page-url-path: /actuator/info
     health-check-url-path: /actuator/health
 
-# Keycloak Configuration - UPDATED TO MATCH CODE EXPECTATIONS
+# Keycloak Configuration - UPDATED FOR COMPATIBILITY
 keycloak:
-  # Standard Keycloak properties (used by your code)
+  # Standard Keycloak properties
   auth-server-url: http://keycloak:8080
   realm: parcel-realm
   resource: auth-service
@@ -109,11 +121,11 @@ keycloak:
     username: admin
     password: admin123
 
-  # Additional configuration (for backward compatibility)
-  url: http://keycloak:8080  # Alternative name used in some places
+  # Alternative configuration names for compatibility
+  url: http://keycloak:8080
   client:
-    id: auth-service         # Alternative name
-    secret: auth-service-secret # Alternative name
+    id: auth-service
+    secret: auth-service-secret
 
   # Token Configuration
   token:
@@ -132,42 +144,52 @@ security:
     secret: your-jwt-secret-key-here-change-in-production  # Change this in production
     expiration: 86400000  # 24 hours
     issuer: auth-service
-  cors:
-    allowed-origins: http://localhost:3000,http://localhost:8080,http://localhost:8083
-    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
-    allowed-headers: "*"
-    allow-credentials: true
 
 # Resilience4j Configuration
 resilience4j:
   circuitbreaker:
     instances:
       keycloakClient:
-        registerHealthIndicator: true
-        slidingWindowType: COUNT_BASED
-        slidingWindowSize: 10
-        minimumNumberOfCalls: 5
-        waitDurationInOpenState: 10000
-        permittedNumberOfCallsInHalfOpenState: 3
-        failureRateThreshold: 50
-        eventConsumerBufferSize: 10
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        failure-rate-threshold: 50
+        event-consumer-buffer-size: 10
+        record-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.net.ConnectException
+          - jakarta.ws.rs.ProcessingException
+          - java.util.concurrent.TimeoutException
+
   retry:
     instances:
       keycloakRetry:
-        maxAttempts: 3
-        waitDuration: 1000
-        retryExceptions:
+        max-attempts: 3
+        wait-duration: 2s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
           - org.springframework.web.client.ResourceAccessException
           - java.net.ConnectException
+          - jakarta.ws.rs.ProcessingException
 
-# Feign Client Configuration (if using)
+  timelimiter:
+    instances:
+      keycloakTimeout:
+        timeout-duration: 30s
+        cancel-running-future: true
+
+# Feign Client Configuration
 feign:
   client:
     config:
       default:
-        connectTimeout: 5000
-        readTimeout: 5000
-        loggerLevel: basic
+        connect-timeout: 5000
+        read-timeout: 5000
+        logger-level: basic
   circuitbreaker:
     enabled: true
 
@@ -178,17 +200,37 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     enabled: true
+    tags-sorter: alpha
+    operations-sorter: alpha
   packages-to-scan: com.sparrow.auth.controller
   default-produces-media-type: application/json
+  show-actuator: true
 
 # Custom Application Properties
 app:
   version: 1.0.0
   name: Auth Service
   description: Authentication and Authorization Microservice
-  cors:
-    allowed-origins: http://localhost:3000,http://localhost:8080
-    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
-    allowed-headers: Authorization,Content-Type,X-Requested-With,Accept,Origin,Access-Control-Request-Method,Access-Control-Request-Headers
-    exposed-headers: Authorization,Content-Type
-    max-age: 3600
+
+
+  keycloak:
+    connection:
+      max-retries: 10
+      initial-delay-ms: 5000
+      max-delay-ms: 30000
+    admin:
+      client-id: admin-cli
+      realm: master
+
+  rate-limiting:
+    enabled: true
+    requests-per-second: 100
+
+# H2 Database Console (for development only)
+h2:
+  console:
+    enabled: true
+    path: /h2-console
+    settings:
+      trace: false
+      web-allow-others: false

@@ -1,5 +1,6 @@
 package com.sparrow.auth_service.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
@@ -9,8 +10,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.retry.annotation.EnableRetry;
 
 @Configuration
+@EnableRetry
 public class KeycloakConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(KeycloakConfig.class);
@@ -23,6 +26,13 @@ public class KeycloakConfig {
 
     @Value("${keycloak.admin.password}")
     private String adminPassword;
+
+    @Bean
+    public ObjectMapper objectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        return mapper;
+    }
 
     @Bean
     @Lazy

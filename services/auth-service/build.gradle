@@ -27,8 +27,9 @@ repositories {
 
 ext {
     springCloudVersion = '2024.0.0'
-    keycloakVersion = '22.0.5'
+    keycloakVersion = '23.0.7' // UPDATED from 22.0.5 to 23.0.7
     springdocVersion = '2.2.0'
+    resilience4jVersion = '2.2.0'
 }
 
 dependencies {
@@ -46,13 +47,25 @@ dependencies {
     // Spring Cloud Dependencies
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
 
-    // Keycloak Dependencies
+    // Keycloak Dependencies - UPDATED to match Docker version
     implementation "org.keycloak:keycloak-admin-client:${keycloakVersion}"
 
     // Jakarta JAX-RS API
     implementation 'jakarta.ws.rs:jakarta.ws.rs-api:3.1.0'
     implementation 'org.jboss.resteasy:resteasy-client:6.2.4.Final'
     implementation 'org.jboss.resteasy:resteasy-jackson2-provider:6.2.4.Final'
+
+    // Resilience4j for circuit breaker and retry
+    implementation "io.github.resilience4j:resilience4j-spring-boot3:${resilience4jVersion}"
+    implementation "io.github.resilience4j:resilience4j-circuitbreaker:${resilience4jVersion}"
+    implementation "io.github.resilience4j:resilience4j-retry:${resilience4jVersion}"
+
+    implementation 'org.springframework.retry:spring-retry:2.0.5'
+    implementation 'org.springframework:spring-aspects:6.1.8'
+
+    // Micrometer for metrics
+    implementation 'io.micrometer:micrometer-core'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
 
     // OpenAPI/Swagger Documentation
     implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
