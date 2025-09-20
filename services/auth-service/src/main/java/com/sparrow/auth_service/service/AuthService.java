@@ -15,14 +15,11 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
-
-// Remove javax.ws.rs.NotAuthorizedException import
-// Handle authentication exceptions differently
-import org.springframework.security.authentication.BadCredentialsException;
 
 import java.util.Base64;
 import java.util.List;
@@ -47,12 +44,11 @@ public class AuthService {
 
     private final Keycloak adminKeycloak;
     private final KeycloakService keycloakService;
-
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AuthResponse login(LoginRequest request) {
         try {
-            // Create a user-specific Keycloak instance for login
+            // Create user-specific Keycloak instance for login
             Keycloak userKeycloak = KeycloakBuilder.builder()
                     .serverUrl(serverUrl)
                     .realm(realm)
@@ -66,9 +62,8 @@ public class AuthService {
             // Get access token
             AccessTokenResponse tokenResponse = userKeycloak.tokenManager().getAccessToken();
 
-            // Get user details from admin client
+            // Get user details
             UserRepresentation user = findUserByUsername(request.getUsername());
-
             if (user == null) {
                 throw new RuntimeException("User not found after successful login");
             }
@@ -78,7 +73,7 @@ public class AuthService {
                 throw new RuntimeException("User account is disabled");
             }
 
-            // Get user roles using KeycloakService
+            // Get user roles
             List<String> userRoles = keycloakService.getUserRoles(user.getId());
 
             // Build response
@@ -96,7 +91,6 @@ public class AuthService {
             return response;
 
         } catch (Exception e) {
-            // Handle different types of authentication exceptions
             if (e.getMessage() != null && (
                     e.getMessage().contains("invalid_grant") ||
                             e.getMessage().contains("Unauthorized") ||
@@ -124,7 +118,6 @@ public class AuthService {
             params.add("refresh_token", refreshToken);
 
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
-
             String tokenUrl = serverUrl + "/realms/" + realm + "/protocol/openid-connect/token";
 
             ResponseEntity<Map> responseEntity = restTemplate.postForEntity(tokenUrl, request, Map.class);
@@ -139,13 +132,12 @@ public class AuthService {
 
             // Extract username from JWT
             String username = extractUsernameFromToken(accessToken);
-
             UserRepresentation user = findUserByUsername(username);
+
             if (user == null) {
                 throw new RuntimeException("User not found during token refresh");
             }
 
-            // Get user roles using KeycloakService
             List<String> userRoles = keycloakService.getUserRoles(user.getId());
 
             AuthResponse authResponse = new AuthResponse();
@@ -158,7 +150,7 @@ public class AuthService {
             authResponse.setUserId(user.getId());
             authResponse.setRoles(userRoles);
 
-            log.info("Token refreshed successfully for user: {} with roles: {}", username, userRoles);
+            log.info("Token refreshed successfully for user: {}", username);
             return authResponse;
 
         } catch (Exception e) {
@@ -180,7 +172,6 @@ public class AuthService {
             params.add("refresh_token", refreshToken);
 
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
-
             String logoutUrl = serverUrl + "/realms/" + realm + "/protocol/openid-connect/logout";
 
             ResponseEntity<String> responseEntity = restTemplate.postForEntity(logoutUrl, request, String.class);
@@ -222,7 +213,6 @@ public class AuthService {
             String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
             Map<String, Object> claims = objectMapper.readValue(payload, Map.class);
 
-            // Keycloak username claim is usually "preferred_username"
             return (String) claims.get("preferred_username");
         } catch (Exception e) {
             log.error("Error extracting username from token", e);

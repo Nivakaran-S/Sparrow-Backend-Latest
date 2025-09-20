@@ -8,7 +8,6 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_DATABASE: admin
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: password
     volumes:
@@ -17,11 +16,35 @@ services:
       - parcel-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mongosh", "-u", "admin", "-p", "password", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--username", "admin", "--password", "password", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
       interval: 30s
       timeout: 10s
       retries: 3
 
+  # ---------- PostgreSQL for Keycloak ----------
+  postgres:
+    image: postgres:15
+    container_name: keycloak-postgres
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    networks:
+      - parcel-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+  # ---------- Eureka ----------
   eureka-server:
     image: steeltoeoss/eureka-server:latest
     container_name: eureka-server
@@ -35,7 +58,7 @@ services:
       - parcel-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://eureka-server:8761/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -97,20 +120,22 @@ services:
     restart: unless-stopped
 
   # ---------- Keycloak & Auth ----------
+
   keycloak:
-    image: quay.io/keycloak/keycloak:21.1.1
+    image: quay.io/keycloak/keycloak:23.0.7
     container_name: keycloak
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin123
-      KC_HTTP_ENABLED: 'true'
-      KC_HOSTNAME_STRICT: 'false'
-      KC_HOSTNAME_STRICT_HTTPS: 'false'
+      KC_DB: dev-mem  # ← CHANGED: Use in-memory database instead of PostgreSQL
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
       KC_LOG_LEVEL: INFO
+      KC_IMPORT: /opt/keycloak/data/import/parcel-realm.json
     ports:
       - "8089:8080"
     volumes:
-      - keycloak_data:/opt/keycloak/data
       - ./keycloak/realm-config:/opt/keycloak/data/import
     command:
       - "start-dev"
@@ -119,7 +144,7 @@ services:
       - parcel-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/master"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
       interval: 30s
       timeout: 10s
       retries: 15
@@ -134,11 +159,11 @@ services:
       - "8083:8083"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      KEYCLOAK_URL: http://keycloak:8080  # ← FIXED: Use container port 8080
-      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/parcel-realm  # ← FIXED: Use container port 8080
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/parcel-realm
       KEYCLOAK_REALM: parcel-realm
       KEYCLOAK_CLIENT: auth-service
-      KEYCLOAK_SECRET: your-client-secret  # ← UPDATE: Replace with actual secret from Keycloak admin
+      KEYCLOAK_SECRET: auth-service-secret  # Make sure this matches your realm JSON
       KEYCLOAK_ADMIN_USER: admin
       KEYCLOAK_ADMIN_PASSWORD: admin123
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
@@ -159,14 +184,11 @@ services:
       retries: 10
       start_period: 120s
 
-  # Add Redis service
   redis:
     image: redis:7-alpine
     container_name: parcel-redis
     ports:
       - "6379:6379"
-    environment:
-      REDIS_PASSWORD: redispass
     command: redis-server --requirepass redispass
     networks:
       - parcel-network
@@ -269,7 +291,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 5  # FIXED: Changed from 'retrides' to 'retries'
       start_period: 60s
 
   pricing-service:
@@ -423,4 +445,4 @@ networks:
 
 volumes:
   mongodb_data:
-  keycloak_data:
+  postgres_data:

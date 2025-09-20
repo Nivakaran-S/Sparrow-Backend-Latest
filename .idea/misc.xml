@@ -5,6 +5,7 @@
     <file type="web" url="file://$PROJECT_DIR$/api-gateway" />
     <file type="web" url="file://$PROJECT_DIR$/auth-service" />
     <file type="web" url="file://$PROJECT_DIR$/parcel-service" />
+    <file type="web" url="file://$PROJECT_DIR$/services/auth-service" />
     <file type="web" url="file://$PROJECT_DIR$/services/consolidation-service/consolidation-service" />
     <file type="web" url="file://$PROJECT_DIR$/services/warehouse-service/warehouse-service" />
   </component>

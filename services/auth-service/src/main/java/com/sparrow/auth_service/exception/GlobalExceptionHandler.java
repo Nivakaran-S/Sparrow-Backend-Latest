@@ -15,10 +15,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 
-// Use Jakarta EE instead of javax
-import jakarta.ws.rs.NotAuthorizedException;
-import jakarta.ws.rs.NotFoundException;
-
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -95,11 +91,9 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errorResponse);
     }
 
-    // Remove NotAuthorizedException from JAX-RS as it might not be available
-    // Use only Spring Security exceptions
-    @ExceptionHandler({BadCredentialsException.class})
+    @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleAuthenticationException(
-            Exception ex, WebRequest request) {
+            BadCredentialsException ex, WebRequest request) {
 
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
@@ -177,5 +171,17 @@ public class GlobalExceptionHandler {
     private String getPath(WebRequest request) {
         return request.getDescription(false).replace("uri=", "");
     }
-}
 
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class ErrorResponse {
+        private LocalDateTime timestamp;
+        private int status;
+        private String error;
+        private String message;
+        private String path;
+        private Map<String, String> validationErrors;
+    }
+}

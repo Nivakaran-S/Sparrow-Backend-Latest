@@ -1,357 +1,194 @@
-# services/auth-service/src/main/resources/application.yml
+# Application Configuration
+spring:
+  application:
+    name: auth-service
+  
+  # Database Configuration (for user management)
+  datasource:
+    url: jdbc:h2:mem:authdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  # JPA Configuration
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop  # Use 'update' in production
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Spring Security OAuth2 Resource Server Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/parcel-realm
+          jwk-set-uri: http://keycloak:8080/realms/parcel-realm/protocol/openid-connect/certs
+
+  # Web Configuration
+  web:
+    resources:
+      add-mappings: false
+
+  # MVC Configuration
+
+  # Eureka Client Configuration
+  cloud:
+    loadbalancer:
+      enabled: true
+
+  # Actuator Configuration
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health,info,metrics,env,beans
+    endpoint:
+      health:
+        show-details: always
+      metrics:
+        enabled: true
+    health:
+      circuitbreakers:
+        enabled: true
+
+  # Logging Configuration
+  logging:
+    level:
+      com.sparrow.auth: DEBUG
+      org.springframework.security: DEBUG
+      org.keycloak: DEBUG
+      org.hibernate.sql: DEBUG
+      org.hibernate.type: TRACE
+    pattern:
+      console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+  # Jackson Configuration
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: UTC
+    default-property-inclusion: non_null
+
+# Server Configuration
 server:
   port: 8083
   servlet:
     context-path: /
 
-spring:
-  application:
-    name: auth-service
-
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE:docker}
-
-  # Remove gateway config from auth service (this should be in API Gateway only)
-  # cloud:
-  #   gateway: ...
-
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          # Fixed: Use consistent environment variables and proper defaults
-          issuer-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}
-          jwk-set-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}/protocol/openid-connect/certs
-
-  # Database Configuration (H2 for development/testing)
-  datasource:
-    url: jdbc:h2:mem:auth_service_db
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-
-  jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
-    hibernate:
-      ddl-auto: create-drop
-    show-sql: false
-    properties:
-      hibernate:
-        format_sql: false
-
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-
-  # Cache Configuration
-  cache:
-    type: caffeine
-    caffeine:
-      spec: maximumSize=1000,expireAfterAccess=600s
-
-# Keycloak Configuration
-keycloak:
-  auth-server-url: ${KEYCLOAK_URL:http://keycloak:8080}
-  realm: ${KEYCLOAK_REALM:parcel-realm}
-
-  # For resource server (JWT validation)
-  resource: ${KEYCLOAK_CLIENT:auth-service}
-  credentials:
-    secret: ${KEYCLOAK_SECRET:your-client-secret}
-
-  # For admin client - Use master realm for admin operations
-  admin:
-    client-id: ${KEYCLOAK_ADMIN_CLIENT:admin-cli}
-    username: ${KEYCLOAK_ADMIN_USER:admin}
-    password: ${KEYCLOAK_ADMIN_PASSWORD:admin123}
-    client-secret: ${KEYCLOAK_ADMIN_SECRET:}
-
-# OpenAPI/Swagger Configuration
-springdoc:
-  api-docs:
-    path: /api-docs
-    enabled: true
-  swagger-ui:
-    path: /swagger-ui.html
-    display-request-duration: true
-    tags-sorter: alpha
-    operations-sorter: alpha
-    disable-swagger-default-url: false
-    config-url: /v3/api-docs/swagger-config
-    urls:
-      - name: Auth Service API
-        url: /v3/api-docs
-  show-actuator: true
-  paths-to-match: /api/**
-
-# Eureka Configuration
+# Eureka Client Configuration
 eureka:
   client:
-    service-url:
-      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://eureka-server:8761/eureka/}
     register-with-eureka: true
     fetch-registry: true
-    registry-fetch-interval-seconds: 5
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
     healthcheck:
       enabled: true
   instance:
-    hostname: ${HOSTNAME:auth-service}
-    prefer-ip-address: false
-    lease-renewal-interval-in-seconds: 10
-    lease-expiration-duration-in-seconds: 30
-    health-check-url-path: /actuator/health
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${spring.application.instance-id:${random.value}}
+    hostname: auth-service
+    appname: auth-service
     status-page-url-path: /actuator/info
-    metadata-map:
-      management.context-path: /actuator
-      version: "1.0.0"
-      description: "Authentication and User Management Service"
+    health-check-url-path: /actuator/health
 
-# Actuator Configuration
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus,env
-      base-path: /actuator
-  endpoint:
-    health:
-      show-details: always
-      show-components: always
-    metrics:
-      enabled: true
-    info:
-      enabled: true
-  health:
-    keycloak:
-      enabled: false  # Disable if causing issues, enable when Keycloak health check is implemented
-  info:
-    env:
-      enabled: true
-    git:
-      enabled: true
-    build:
-      enabled: true
+# Keycloak Configuration - UPDATED TO MATCH CODE EXPECTATIONS
+keycloak:
+  # Standard Keycloak properties (used by your code)
+  auth-server-url: http://keycloak:8080
+  realm: parcel-realm
+  resource: auth-service
+  credentials:
+    secret: auth-service-secret
 
+  # Admin configuration
+  admin:
+    username: admin
+    password: admin123
 
-# Application Information
-info:
-  app:
-    name: ${spring.application.name}
-    description: "Authentication and User Management Service for Parcel Consolidation Platform"
-    version: "1.0.0"
-    author: "Sparrow Team"
-  keycloak:
-    realm: ${keycloak.realm}
-    server-url: ${keycloak.auth-server-url}
-  build:
-    time: ${maven.build.timestamp:unknown}
-    version: ${project.version:1.0.0}
+  # Additional configuration (for backward compatibility)
+  url: http://keycloak:8080  # Alternative name used in some places
+  client:
+    id: auth-service         # Alternative name
+    secret: auth-service-secret # Alternative name
 
-# Logging Configuration
-logging:
-  level:
-    com.sparrow.auth_service: ${LOG_LEVEL_AUTH_SERVICE:DEBUG}
-    org.keycloak: ${LOG_LEVEL_KEYCLOAK:INFO}
-    org.springdoc: ${LOG_LEVEL_SPRINGDOC:INFO}
-    com.netflix.eureka: ${LOG_LEVEL_EUREKA:INFO}
-    com.netflix.discovery: ${LOG_LEVEL_DISCOVERY:INFO}
-    org.springframework.security: ${LOG_LEVEL_SECURITY:INFO}
-    org.springframework.web: ${LOG_LEVEL_WEB:INFO}
-    org.jboss.resteasy: ${LOG_LEVEL_RESTEASY:WARN}
-    javax.ws.rs: DEBUG
-    jakarta.ws.rs: DEBUG
-    root: ${LOG_LEVEL_ROOT:INFO}
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  # Token Configuration
+  token:
+    expiration: 3600  # 1 hour
+    refresh-expiration: 7200  # 2 hours
+
+  # Connection Configuration
+  connection:
+    pool-size: 20
+    connection-timeout: 30000
+    socket-timeout: 30000
+
+# Security Configuration
+security:
+  jwt:
+    secret: your-jwt-secret-key-here-change-in-production  # Change this in production
+    expiration: 86400000  # 24 hours
+    issuer: auth-service
+  cors:
+    allowed-origins: http://localhost:3000,http://localhost:8080,http://localhost:8083
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      keycloakClient:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        waitDurationInOpenState: 10000
+        permittedNumberOfCallsInHalfOpenState: 3
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+  retry:
+    instances:
+      keycloakRetry:
+        maxAttempts: 3
+        waitDuration: 1000
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.net.ConnectException
+
+# Feign Client Configuration (if using)
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: basic
+  circuitbreaker:
+    enabled: true
+
+# Spring Doc OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+  packages-to-scan: com.sparrow.auth.controller
+  default-produces-media-type: application/json
 
 # Custom Application Properties
 app:
-  security:
-    # JWT token expiration times (in seconds)
-    access-token-expiry: 900        # 15 minutes
-    refresh-token-expiry: 86400     # 24 hours
-
-    # Password policy
-    password:
-      min-length: 8
-      require-uppercase: true
-      require-lowercase: true
-      require-numbers: true
-      require-special-chars: false
-
-    # Account lockout policy
-    lockout:
-      max-attempts: 5
-      lockout-duration: 300    # 5 minutes
-
-    # CORS configuration
-    cors:
-      allowed-origins:
-        - "http://localhost:3000"    # React frontend
-        - "http://localhost:8080"    # API Gateway
-        - "https://*.sparrow.com"    # Production domains
-      allowed-methods:
-        - GET
-        - POST
-        - PUT
-        - DELETE
-        - PATCH
-        - OPTIONS
-      allowed-headers: "*"
-      allow-credentials: true
-      max-age: 3600
-
-  audit:
-    enabled: true
-    max-logs-in-memory: 10000
-
-  user-management:
-    default-role: "CUSTOMER"
-    allowed-roles:
-      - "ADMIN"
-      - "CUSTOMER"
-      - "STAFF"
-      - "DRIVER"
-    admin-can-create-admin: false
-
-  # Rate limiting configuration
-  rate-limit:
-    enabled: true
-    requests-per-minute: 100
-    burst-capacity: 20
-
----
-# Docker Profile
-spring:
-  config:
-    activate:
-      on-profile: docker
-
-  datasource:
-    url: jdbc:h2:mem:auth_service_docker_db
-
-keycloak:
-  auth-server-url: http://keycloak:8080
-
-eureka:
-  instance:
-    hostname: auth-service
-    prefer-ip-address: true
-
-logging:
-  level:
-    com.sparrow.auth_service: INFO
-    org.springframework.security: WARN
-    org.keycloak: INFO
-    javax.ws.rs: INFO
-    jakarta.ws.rs: INFO
-
----
-# Development Profile
-spring:
-  config:
-    activate:
-      on-profile: development
-
-  datasource:
-    url: jdbc:h2:mem:auth_service_dev_db
-
-  h2:
-    console:
-      enabled: true
-
-keycloak:
-  auth-server-url: http://localhost:8089
-
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka/
-
-logging:
-  level:
-    com.sparrow.auth_service: DEBUG
-    org.springframework.security: DEBUG
-    org.keycloak: DEBUG
-    javax.ws.rs: DEBUG
-    jakarta.ws.rs: DEBUG
-
----
-# Test Profile
-spring:
-  config:
-    activate:
-      on-profile: test
-
-  datasource:
-    url: jdbc:h2:mem:auth_service_test_db
-
-eureka:
-  client:
-    enabled: false
-
-keycloak:
-  auth-server-url: http://localhost:8089
-
-logging:
-  level:
-    com.sparrow.auth_service: DEBUG
-    org.springframework.security: DEBUG
-    root: INFO
-
----
-# Production Profile
-spring:
-  config:
-    activate:
-      on-profile: production
-
-  datasource:
-    # In production, you might want to use PostgreSQL instead of H2
-    url: ${DATABASE_URL:jdbc:h2:mem:auth_service_prod_db}
-    username: ${DATABASE_USERNAME:sa}
-    password: ${DATABASE_PASSWORD:}
-
-  jpa:
-    hibernate:
-      ddl-auto: validate  # Don't auto-create tables in production
-    show-sql: false
-
-  h2:
-    console:
-      enabled: false  # Disable H2 console in production
-
-keycloak:
-  auth-server-url: ${KEYCLOAK_URL}
-  admin:
-    username: ${KEYCLOAK_ADMIN_USER}
-    password: ${KEYCLOAK_ADMIN_PASSWORD}
-
-eureka:
-  instance:
-    hostname: ${HOSTNAME:auth-service}
-    prefer-ip-address: false
-
-management:
-  endpoint:
-    health:
-      show-details: when-authorized  # Restrict health details in production
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-
-logging:
-  level:
-    com.sparrow.auth_service: INFO
-    org.springframework.security: WARN
-    org.keycloak: WARN
-    javax.ws.rs: WARN
-    jakarta.ws.rs: WARN
-    root: WARN
-  file:
-    name: /var/log/auth-service/application.log
-    max-size: 10MB
-    max-history: 30
+  version: 1.0.0
+  name: Auth Service
+  description: Authentication and Authorization Microservice
+  cors:
+    allowed-origins: http://localhost:3000,http://localhost:8080
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: Authorization,Content-Type,X-Requested-With,Accept,Origin,Access-Control-Request-Method,Access-Control-Request-Headers
+    exposed-headers: Authorization,Content-Type
+    max-age: 3600

@@ -21,7 +21,7 @@
       "description": "Authentication service client",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
-      "secret": "your-client-secret",
+      "secret": "auth-service-secret",
       "redirectUris": [
         "http://localhost:8083/*",
         "http://auth-service:8083/*"
@@ -48,7 +48,22 @@
             "claim.name": "realm_access.roles",
             "jsonType.label": "String"
           }
-        },
+        }
+      ],
+      "defaultClientScopes": ["profile", "email", "roles"],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "parcel-service",
+      "name": "Parcel Service",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "parcel-service-secret",
+      "redirectUris": ["http://localhost:8084/*", "http://parcel-service:8080/*"],
+      "webOrigins": ["*"],
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "protocolMappers": [
         {
           "name": "roles",
           "protocol": "openid-connect",
@@ -62,20 +77,7 @@
             "jsonType.label": "String"
           }
         }
-      ],
-      "defaultClientScopes": ["profile", "email", "roles"],
-      "optionalClientScopes": []
-    },
-    {
-      "clientId": "parcel-service",
-      "name": "Parcel Service",
-      "enabled": true,
-      "publicClient": false,
-      "secret": "parcel-service-secret",
-      "redirectUris": ["*"],
-      "webOrigins": ["*"],
-      "serviceAccountsEnabled": true,
-      "directAccessGrantsEnabled": true
+      ]
     },
     {
       "clientId": "warehouse-service",
@@ -83,10 +85,25 @@
       "enabled": true,
       "publicClient": false,
       "secret": "warehouse-service-secret",
-      "redirectUris": ["*"],
+      "redirectUris": ["http://localhost:8082/*", "http://warehouse-service:8082/*"],
       "webOrigins": ["*"],
       "serviceAccountsEnabled": true,
-      "directAccessGrantsEnabled": true
+      "directAccessGrantsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
     }
   ],
 
@@ -136,6 +153,10 @@
       {
         "name": "DRIVER",
         "description": "Driver role"
+      },
+      {
+        "name": "USER",
+        "description": "Basic user role"
       }
     ]
   },

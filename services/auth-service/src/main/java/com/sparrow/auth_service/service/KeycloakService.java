@@ -20,9 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-// Use Jakarta EE instead of javax
 import jakarta.servlet.http.HttpServletRequest;
-// Use Jakarta WS-RS instead of javax
 import jakarta.ws.rs.core.Response;
 
 import java.security.Principal;
@@ -73,7 +71,7 @@ public class KeycloakService {
             String userId;
             try (Response response = usersResource.create(user)) {
                 if (response.getStatus() != Response.Status.CREATED.getStatusCode()) {
-                    String errorMessage = extractErrorMessage(response);
+                    String errorMessage = "User creation failed with status: " + response.getStatus();
                     log.error("Failed to create user {}: {}", request.getUsername(), errorMessage);
                     auditService.logUserRegistration(null, request.getUsername(), ipAddress, userAgent, false);
                     throw new KeycloakException("Failed to create user: " + errorMessage);
@@ -93,7 +91,6 @@ public class KeycloakService {
                 log.info("Successfully assigned roles {} to user {}", rolesToAssign, userId);
             } catch (Exception e) {
                 log.error("Failed to assign roles to user {}: {}", userId, e.getMessage(), e);
-                // Don't throw exception here - user was created successfully
             }
 
             UserResponse userResponse = getUserById(userId);
@@ -105,14 +102,13 @@ public class KeycloakService {
             return userResponse;
 
         } catch (UserAlreadyExistsException e) {
-            throw e; // Re-throw as is
+            throw e;
         } catch (Exception e) {
             log.error("Error creating user: {}", request.getUsername(), e);
             auditService.logUserRegistration(null, request.getUsername(), ipAddress, userAgent, false);
             throw new KeycloakException("Failed to create user: " + e.getMessage(), e);
         }
     }
-
 
     public UserResponse getUserById(String userId) {
         try {
@@ -124,7 +120,6 @@ public class KeycloakService {
                 throw new UserNotFoundException("User not found with ID: " + userId);
             }
 
-            // Get user roles - only effective realm roles, not default ones
             List<RoleRepresentation> effectiveRealmRoles = userResource.roles().realmLevel().listEffective();
             List<String> roleNames = effectiveRealmRoles.stream()
                     .map(RoleRepresentation::getName)
@@ -135,7 +130,7 @@ public class KeycloakService {
             return mapToUserResponse(userRep, roleNames);
 
         } catch (UserNotFoundException e) {
-            throw e; // Re-throw as is
+            throw e;
         } catch (Exception e) {
             log.error("Error getting user by ID: {}", userId, e);
             throw new KeycloakException("Failed to get user: " + e.getMessage(), e);
@@ -149,8 +144,6 @@ public class KeycloakService {
             }
 
             RealmResource realmResource = getRealmResource();
-
-            // Get all users with the specified role
             List<UserRepresentation> users = realmResource.roles().get(roleName.toUpperCase()).getUserMembers();
 
             return users.stream()
@@ -180,7 +173,6 @@ public class KeycloakService {
         String performedBy = getCurrentUsername();
 
         try {
-            // Validate roles
             List<String> validRoles = roleNames.stream()
                     .filter(role -> VALID_ROLES.contains(role.toUpperCase()))
                     .map(String::toUpperCase)
@@ -224,7 +216,7 @@ public class KeycloakService {
             }
 
         } catch (UserNotFoundException e) {
-            throw e; // Re-throw as is
+            throw e;
         } catch (Exception e) {
             log.error("Error assigning roles {} to user {}: {}", roleNames, userId, e.getMessage(), e);
             throw new KeycloakException("Failed to assign roles: " + e.getMessage(), e);
@@ -250,7 +242,7 @@ public class KeycloakService {
             log.info("User {} disabled by {}", userId, performedBy);
 
         } catch (UserNotFoundException e) {
-            throw e; // Re-throw as is
+            throw e;
         } catch (Exception e) {
             log.error("Error disabling user: {}", userId, e);
             throw new KeycloakException("Failed to disable user: " + e.getMessage(), e);
@@ -296,7 +288,7 @@ public class KeycloakService {
             log.info("User {} ({}) deleted by {}", username, userId, performedBy);
 
         } catch (UserNotFoundException e) {
-            throw e; // Re-throw as is
+            throw e;
         } catch (Exception e) {
             log.error("Error deleting user: {}", userId, e);
             throw new KeycloakException("Failed to delete user: " + e.getMessage(), e);
@@ -339,3 +331,73 @@ public class KeycloakService {
             }
             user.setAttributes(attributes);
         }
+
+        return user;
+    }
+
+    private UserResponse mapToUserResponse(UserRepresentation userRep, List<String> roles) {
+        UserResponse response = new UserResponse();
+        response.setId(userRep.getId());
+        response.setUsername(userRep.getUsername());
+        response.setEmail(userRep.getEmail());
+        response.setFirstName(userRep.getFirstName());
+        response.setLastName(userRep.getLastName());
+        response.setEnabled(userRep.isEnabled());
+        response.setRoles(roles);
+
+        if (userRep.getCreatedTimestamp() != null) {
+            response.setCreatedTimestamp(
+                    Instant.ofEpochMilli(userRep.getCreatedTimestamp())
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDateTime()
+            );
+        }
+
+        if (userRep.getAttributes() != null) {
+            Map<String, List<String>> attributes = userRep.getAttributes();
+            if (attributes.containsKey("phoneNumber") && !attributes.get("phoneNumber").isEmpty()) {
+                response.setPhoneNumber(attributes.get("phoneNumber").get(0));
+            }
+            if (attributes.containsKey("address") && !attributes.get("address").isEmpty()) {
+                response.setAddress(attributes.get("address").get(0));
+            }
+        }
+
+        return response;
+    }
+
+    private String getCurrentUsername() {
+        try {
+            ServletRequestAttributes attr = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+            HttpServletRequest request = attr.getRequest();
+            Principal principal = request.getUserPrincipal();
+            return principal != null ? principal.getName() : "SYSTEM";
+        } catch (Exception e) {
+            return "SYSTEM";
+        }
+    }
+
+    private String getCurrentIpAddress() {
+        try {
+            ServletRequestAttributes attr = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+            HttpServletRequest request = attr.getRequest();
+            String xForwardedFor = request.getHeader("X-Forwarded-For");
+            if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+                return xForwardedFor.split(",")[0];
+            }
+            return request.getRemoteAddr();
+        } catch (Exception e) {
+            return "unknown";
+        }
+    }
+
+    private String getCurrentUserAgent() {
+        try {
+            ServletRequestAttributes attr = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+            HttpServletRequest request = attr.getRequest();
+            return request.getHeader("User-Agent");
+        } catch (Exception e) {
+            return "unknown";
+        }
+    }
+}
