@@ -20,8 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.core.Response;
+// Use Jakarta EE instead of javax
+import jakarta.servlet.http.HttpServletRequest;
+// Use Jakarta WS-RS instead of javax
+import jakarta.ws.rs.core.Response;
+
 import java.security.Principal;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -109,6 +112,7 @@ public class KeycloakService {
             throw new KeycloakException("Failed to create user: " + e.getMessage(), e);
         }
     }
+
 
     public UserResponse getUserById(String userId) {
         try {
@@ -335,103 +339,3 @@ public class KeycloakService {
             }
             user.setAttributes(attributes);
         }
-
-        return user;
-    }
-
-    private UserResponse mapToUserResponse(UserRepresentation userRep, List<String> roles) {
-        UserResponse response = new UserResponse();
-        response.setId(userRep.getId());
-        response.setUsername(userRep.getUsername());
-        response.setEmail(userRep.getEmail());
-        response.setFirstName(userRep.getFirstName());
-        response.setLastName(userRep.getLastName());
-        response.setEnabled(userRep.isEnabled());
-        response.setRoles(roles);
-
-        // Convert timestamp
-        if (userRep.getCreatedTimestamp() != null) {
-            response.setCreatedTimestamp(
-                    Instant.ofEpochMilli(userRep.getCreatedTimestamp())
-                            .atZone(ZoneId.systemDefault())
-                            .toLocalDateTime()
-            );
-        }
-
-        // Set attributes
-        if (userRep.getAttributes() != null) {
-            Map<String, List<String>> attributes = userRep.getAttributes();
-            if (attributes.containsKey("phoneNumber") && !attributes.get("phoneNumber").isEmpty()) {
-                response.setPhoneNumber(attributes.get("phoneNumber").get(0));
-            }
-            if (attributes.containsKey("address") && !attributes.get("address").isEmpty()) {
-                response.setAddress(attributes.get("address").get(0));
-            }
-        }
-
-        return response;
-    }
-
-    private String extractErrorMessage(Response response) {
-        try {
-            if (response.hasEntity()) {
-                return response.readEntity(String.class);
-            }
-            return response.getStatusInfo().getReasonPhrase();
-        } catch (Exception e) {
-            return "Unknown error occurred";
-        }
-    }
-
-    private String getCurrentUsername() {
-        try {
-            // Try to get from Spring Security context first
-            org.springframework.security.core.Authentication authentication =
-                    org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-
-            if (authentication != null && authentication.isAuthenticated()) {
-                return authentication.getName();
-            }
-
-            return "SYSTEM";
-        } catch (Exception e) {
-            return "SYSTEM";
-        }
-    }
-
-    private String getCurrentIpAddress() {
-        try {
-            ServletRequestAttributes attributes =
-                    (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-
-            if (attributes != null) {
-                HttpServletRequest request = attributes.getRequest();
-                String xForwardedFor = request.getHeader("X-Forwarded-For");
-                if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-                    return xForwardedFor.split(",")[0].trim();
-                }
-                return request.getRemoteAddr();
-            }
-
-            return "Unknown";
-        } catch (Exception e) {
-            return "Unknown";
-        }
-    }
-
-    private String getCurrentUserAgent() {
-        try {
-            ServletRequestAttributes attributes =
-                    (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-
-            if (attributes != null) {
-                HttpServletRequest request = attributes.getRequest();
-                return request.getHeader("User-Agent");
-            }
-
-            return "Unknown";
-        } catch (Exception e) {
-            return "Unknown";
-        }
-    }
-}

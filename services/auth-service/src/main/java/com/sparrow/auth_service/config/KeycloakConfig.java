@@ -35,29 +35,34 @@ public class KeycloakConfig {
             try {
                 logger.info("Keycloak connection attempt {}/{} to {}", attempt, maxRetries, serverUrl);
 
-                // Use master realm for admin operations
+                // Create Keycloak client with simple configuration
                 Keycloak keycloak = KeycloakBuilder.builder()
                         .serverUrl(serverUrl)
-                        .realm("master")  // Connect to master realm for admin operations
+                        .realm("master")
                         .grantType(OAuth2Constants.PASSWORD)
                         .clientId("admin-cli")
                         .username(adminUsername)
                         .password(adminPassword)
                         .build();
 
-                // Test the connection by getting master realm info
-                keycloak.realm("master").toRepresentation();
-
-                // Also test if we can access the target realm
+                // Test the connection
                 try {
-                    keycloak.realm("parcel-realm").toRepresentation();
-                    logger.info("✅ Successfully connected to Keycloak admin client and verified parcel-realm access");
-                } catch (Exception e) {
-                    logger.warn("Connected to Keycloak but parcel-realm may not be ready yet: {}", e.getMessage());
-                    // Continue anyway - the realm might be imported later
-                }
+                    keycloak.realm("master").toRepresentation();
+                    logger.info("✅ Successfully connected to Keycloak admin client");
 
-                return keycloak;
+                    // Test target realm access
+                    try {
+                        keycloak.realm("parcel-realm").toRepresentation();
+                        logger.info("✅ Verified access to parcel-realm");
+                    } catch (Exception e) {
+                        logger.warn("⚠️ Connected to Keycloak but parcel-realm may not be ready: {}", e.getMessage());
+                    }
+
+                    return keycloak;
+                } catch (Exception e) {
+                    logger.warn("❌ Connection test failed: {}", e.getMessage());
+                    throw e;
+                }
 
             } catch (Exception e) {
                 logger.warn("Keycloak connection attempt {} failed: {}", attempt, e.getMessage());
@@ -69,7 +74,7 @@ public class KeycloakConfig {
 
                 // Exponential backoff with jitter
                 int delay = Math.min(baseDelay * attempt, maxDelay);
-                logger.info("Retrying Keycloak connection in {} ms...", delay);
+                logger.info("⏳ Retrying Keycloak connection in {} ms...", delay);
 
                 try {
                     Thread.sleep(delay);

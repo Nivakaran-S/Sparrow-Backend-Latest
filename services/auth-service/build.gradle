@@ -2,8 +2,8 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.4.2'
     id 'io.spring.dependency-management' version '1.1.7'
-    id 'jacoco' // For code coverage
-    id 'org.sonarqube' version '4.4.1.3373' // For code quality analysis
+    id 'jacoco'
+    id 'org.sonarqube' version '4.4.1.3373'
 }
 
 group = 'com.sparrow'
@@ -21,9 +21,7 @@ configurations {
     compileOnly {
         extendsFrom annotationProcessor
     }
-    all {
-        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
-    }
+    // Remove the logging exclusion that was causing conflicts
 }
 
 repositories {
@@ -35,7 +33,8 @@ repositories {
 
 ext {
     springCloudVersion = '2024.0.0'
-    keycloakVersion = '21.1.1'
+    // Use Keycloak version that's stable with Spring Boot 3.x
+    keycloakVersion = '22.0.5'
     springdocVersion = '2.2.0'
     testcontainersVersion = '1.19.3'
     jjwtVersion = '0.11.5'
@@ -49,54 +48,57 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    implementation 'org.springframework.boot:spring-boot-starter-aop' // For method-level security
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa' // For potential database operations
-
-    // Use Logback instead of default logging
-    implementation 'org.springframework.boot:spring-boot-starter-logging'
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 
     // Spring Cloud Dependencies
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
     implementation 'org.springframework.cloud:spring-cloud-starter-bootstrap'
     implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
 
-    // Keycloak Dependencies
+    // Keycloak Dependencies - Use compatible version
     implementation "org.keycloak:keycloak-admin-client:${keycloakVersion}"
-    implementation "org.keycloak:keycloak-spring-boot-starter:${keycloakVersion}"
+
+    // Jakarta JAX-RS API (for Spring Boot 3.x compatibility)
+    implementation 'jakarta.ws.rs:jakarta.ws.rs-api:3.1.0'
+
+    // Use compatible RESTEasy version with Jakarta EE
+    implementation 'org.jboss.resteasy:resteasy-client:6.2.4.Final'
+    implementation 'org.jboss.resteasy:resteasy-jackson2-provider:6.2.4.Final'
+
+    // Add explicit JAX-RS implementation for better compatibility
+    implementation 'org.glassfish.jersey.core:jersey-client:3.1.3'
+    implementation 'org.glassfish.jersey.inject:jersey-hk2:3.1.3'
+    implementation 'org.glassfish.jersey.media:jersey-media-json-jackson:3.1.3'
+
 
     // JWT Processing
     implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
     runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
     runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
 
-    // JAX-RS API (required by Keycloak admin client)
-    implementation 'jakarta.ws.rs:jakarta.ws.rs-api:3.1.0'
-    implementation 'org.jboss.resteasy:resteasy-client:6.2.4.Final'
-    implementation 'org.jboss.resteasy:resteasy-jackson2-provider:6.2.4.Final'
-
     // OpenAPI/Swagger Documentation
     implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
     implementation "org.springdoc:springdoc-openapi-starter-webmvc-api:${springdocVersion}"
 
-    // Lombok for reducing boilerplate code
+    // Lombok
     compileOnly "org.projectlombok:lombok:${lombokVersion}"
     annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
 
     // Configuration Processor
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
-    // Database Support (H2 for testing, can be replaced with PostgreSQL/MySQL for production)
+    // Database Support
     runtimeOnly 'com.h2database:h2'
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 
     // Caching Support
     implementation 'org.springframework.boot:spring-boot-starter-cache'
     implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
 
-    // HTTP Client for external API calls
-    implementation 'org.springframework.boot:spring-boot-starter-webflux' // For WebClient
+    // HTTP Client
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
-    // Jackson for JSON processing (additional modules)
+    // Jackson for JSON processing
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     implementation 'com.fasterxml.jackson.core:jackson-annotations'
 
@@ -107,7 +109,7 @@ dependencies {
     // Password Strength Validation
     implementation 'org.passay:passay:1.6.4'
 
-    // Rate Limiting (if needed)
+    // Rate Limiting
     implementation 'com.github.vladimir-bukhtoyarov:bucket4j-core:7.6.0'
     implementation 'com.github.vladimir-bukhtoyarov:bucket4j-caffeine:7.6.0'
 
@@ -125,16 +127,10 @@ dependencies {
     testImplementation "org.testcontainers:postgresql:${testcontainersVersion}"
     testImplementation "org.testcontainers:keycloak:${testcontainersVersion}"
 
-    // MockWebServer for testing external API calls
+    // Testing utilities
     testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
-
-    // WireMock for mocking HTTP services
     testImplementation 'com.github.tomakehurst:wiremock-jre8:2.35.1'
-
-    // AssertJ for fluent assertions
     testImplementation 'org.assertj:assertj-core'
-
-    // Mockito for mocking
     testImplementation 'org.mockito:mockito-core'
     testImplementation 'org.mockito:mockito-junit-jupiter'
 }
@@ -143,51 +139,41 @@ dependencyManagement {
     imports {
         mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
         mavenBom "org.testcontainers:testcontainers-bom:${testcontainersVersion}"
-        mavenBom "org.keycloak.bom:keycloak-adapter-bom:${keycloakVersion}"
     }
 }
 
 tasks.named('test') {
     useJUnitPlatform()
 
-    // JVM arguments for testing
     jvmArgs = [
             '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
             '--add-opens', 'java.base/java.util=ALL-UNNAMED'
     ]
 
-    // Test configuration
     systemProperty 'spring.profiles.active', 'test'
 
-    // Generate test reports
     reports {
         junitXml.required = true
         html.required = true
     }
 
-    // Fail fast on first test failure
     failFast = false
-
-    // Parallel execution
     maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
-
     finalizedBy jacocoTestReport
 }
 
-// Jacoco Configuration for Code Coverage
+// Jacoco Configuration
 jacoco {
     toolVersion = "0.8.8"
 }
 
 jacocoTestReport {
     dependsOn test
-
     reports {
         xml.required = true
         html.required = true
         csv.required = false
     }
-
     afterEvaluate {
         classDirectories.setFrom(files(classDirectories.files.collect {
             fileTree(dir: it, exclude: [
@@ -203,11 +189,10 @@ jacocoTestReport {
 
 jacocoTestCoverageVerification {
     dependsOn jacocoTestReport
-
     violationRules {
         rule {
             limit {
-                minimum = 0.70 // 70% code coverage minimum
+                minimum = 0.70
             }
         }
     }
@@ -226,7 +211,6 @@ sonarqube {
     }
 }
 
-// Jar Configuration
 jar {
     enabled = false
     archiveBaseName = "${project.name}"
@@ -236,8 +220,6 @@ jar {
 bootJar {
     enabled = true
     archiveFileName = "${project.name}-${project.version}.jar"
-
-    // Include build information
     manifest {
         attributes(
                 'Implementation-Title': project.description,
@@ -261,7 +243,6 @@ task copyDependencies(type: Copy) {
     into 'build/dependencies'
 }
 
-// Docker support
 task dockerBuildImage(type: Exec) {
     group 'docker'
     description 'Build Docker image'
@@ -269,7 +250,6 @@ task dockerBuildImage(type: Exec) {
     dependsOn bootJar
 }
 
-// Development profile support
 task bootRunDev(type: org.springframework.boot.gradle.tasks.run.BootRun) {
     group 'application'
     description 'Run the application with development profile'
@@ -278,7 +258,6 @@ task bootRunDev(type: org.springframework.boot.gradle.tasks.run.BootRun) {
     mainClass = 'com.sparrow.auth_service.AuthServiceApplication'
 }
 
-// Production build optimizations
 compileJava {
     options.compilerArgs += [
             '-parameters',
@@ -287,14 +266,12 @@ compileJava {
     ]
 }
 
-// Clean task enhancement
 clean {
     delete 'logs'
     delete 'build'
     delete '.gradle'
 }
 
-// Build info for actuator
 springBoot {
     buildInfo {
         properties {

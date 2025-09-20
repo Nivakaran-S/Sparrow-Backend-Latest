@@ -2,6 +2,10 @@ package com.sparrow.auth_service.exception;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import lombok.Data;
+import lombok.Builder;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder

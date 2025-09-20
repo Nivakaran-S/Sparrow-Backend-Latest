@@ -1,6 +1,10 @@
 package com.sparrow.auth_service.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.Data;
+import lombok.Builder;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -11,8 +15,10 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 
-import javax.ws.rs.NotAuthorizedException;
-import javax.ws.rs.NotFoundException;
+// Use Jakarta EE instead of javax
+import jakarta.ws.rs.NotAuthorizedException;
+import jakarta.ws.rs.NotFoundException;
+
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -89,7 +95,9 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errorResponse);
     }
 
-    @ExceptionHandler({NotAuthorizedException.class, BadCredentialsException.class})
+    // Remove NotAuthorizedException from JAX-RS as it might not be available
+    // Use only Spring Security exceptions
+    @ExceptionHandler({BadCredentialsException.class})
     public ResponseEntity<ErrorResponse> handleAuthenticationException(
             Exception ex, WebRequest request) {
 
@@ -170,14 +178,4 @@ public class GlobalExceptionHandler {
         return request.getDescription(false).replace("uri=", "");
     }
 }
-
-// Custom Exception Classes
-
-
-
-
-
-
-
-
 

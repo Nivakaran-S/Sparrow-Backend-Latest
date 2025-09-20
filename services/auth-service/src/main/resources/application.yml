@@ -9,40 +9,53 @@ spring:
     name: auth-service
 
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:default}
+    active: ${SPRING_PROFILES_ACTIVE:docker}
 
-  cloud:
-    gateway:
-      globalcors:
-        cors-configurations:
-          '[/**]':
-            allowedOrigins:
-              - "http://localhost:3000"
-              - "http://localhost:8080"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - DELETE
-              - PATCH
-              - OPTIONS
-            allowedHeaders:
-              - "*"
-            allowCredentials: true
-            maxAge: 3600
+  # Remove gateway config from auth service (this should be in API Gateway only)
+  # cloud:
+  #   gateway: ...
 
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8089/realms/parcel-realm}
-          jwk-set-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8089/realms/parcel-realm}/protocol/openid-connect/certs
+          # Fixed: Use consistent environment variables and proper defaults
+          issuer-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}
+          jwk-set-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}/protocol/openid-connect/certs
 
+  # Database Configuration (H2 for development/testing)
+  datasource:
+    url: jdbc:h2:mem:auth_service_db
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # Cache Configuration
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=1000,expireAfterAccess=600s
+
+# Keycloak Configuration
 keycloak:
   auth-server-url: ${KEYCLOAK_URL:http://keycloak:8080}
   realm: ${KEYCLOAK_REALM:parcel-realm}
 
-  # For resource server
+  # For resource server (JWT validation)
   resource: ${KEYCLOAK_CLIENT:auth-service}
   credentials:
     secret: ${KEYCLOAK_SECRET:your-client-secret}
@@ -64,11 +77,13 @@ springdoc:
     display-request-duration: true
     tags-sorter: alpha
     operations-sorter: alpha
-    url: /api-docs
-    config-url: /api-docs/swagger-config
-    urls-primary-name: Auth Service API
     disable-swagger-default-url: false
+    config-url: /v3/api-docs/swagger-config
+    urls:
+      - name: Auth Service API
+        url: /v3/api-docs
   show-actuator: true
+  paths-to-match: /api/**
 
 # Eureka Configuration
 eureka:
@@ -89,7 +104,7 @@ eureka:
     status-page-url-path: /actuator/info
     metadata-map:
       management.context-path: /actuator
-      version: ${spring.application.version:1.0.0}
+      version: "1.0.0"
       description: "Authentication and User Management Service"
 
 # Actuator Configuration
@@ -97,7 +112,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,metrics,prometheus,env
       base-path: /actuator
   endpoint:
     health:
@@ -109,7 +124,7 @@ management:
       enabled: true
   health:
     keycloak:
-      enabled: true
+      enabled: false  # Disable if causing issues, enable when Keycloak health check is implemented
   info:
     env:
       enabled: true
@@ -117,6 +132,7 @@ management:
       enabled: true
     build:
       enabled: true
+
 
 # Application Information
 info:
@@ -128,6 +144,9 @@ info:
   keycloak:
     realm: ${keycloak.realm}
     server-url: ${keycloak.auth-server-url}
+  build:
+    time: ${maven.build.timestamp:unknown}
+    version: ${project.version:1.0.0}
 
 # Logging Configuration
 logging:
@@ -139,6 +158,9 @@ logging:
     com.netflix.discovery: ${LOG_LEVEL_DISCOVERY:INFO}
     org.springframework.security: ${LOG_LEVEL_SECURITY:INFO}
     org.springframework.web: ${LOG_LEVEL_WEB:INFO}
+    org.jboss.resteasy: ${LOG_LEVEL_RESTEASY:WARN}
+    javax.ws.rs: DEBUG
+    jakarta.ws.rs: DEBUG
     root: ${LOG_LEVEL_ROOT:INFO}
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
@@ -164,6 +186,23 @@ app:
       max-attempts: 5
       lockout-duration: 300    # 5 minutes
 
+    # CORS configuration
+    cors:
+      allowed-origins:
+        - "http://localhost:3000"    # React frontend
+        - "http://localhost:8080"    # API Gateway
+        - "https://*.sparrow.com"    # Production domains
+      allowed-methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - PATCH
+        - OPTIONS
+      allowed-headers: "*"
+      allow-credentials: true
+      max-age: 3600
+
   audit:
     enabled: true
     max-logs-in-memory: 10000
@@ -177,6 +216,12 @@ app:
       - "DRIVER"
     admin-can-create-admin: false
 
+  # Rate limiting configuration
+  rate-limit:
+    enabled: true
+    requests-per-minute: 100
+    burst-capacity: 20
+
 ---
 # Docker Profile
 spring:
@@ -184,13 +229,24 @@ spring:
     activate:
       on-profile: docker
 
+  datasource:
+    url: jdbc:h2:mem:auth_service_docker_db
+
 keycloak:
   auth-server-url: http://keycloak:8080
+
+eureka:
+  instance:
+    hostname: auth-service
+    prefer-ip-address: true
 
 logging:
   level:
     com.sparrow.auth_service: INFO
     org.springframework.security: WARN
+    org.keycloak: INFO
+    javax.ws.rs: INFO
+    jakarta.ws.rs: INFO
 
 ---
 # Development Profile
@@ -199,6 +255,43 @@ spring:
     activate:
       on-profile: development
 
+  datasource:
+    url: jdbc:h2:mem:auth_service_dev_db
+
+  h2:
+    console:
+      enabled: true
+
+keycloak:
+  auth-server-url: http://localhost:8089
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+logging:
+  level:
+    com.sparrow.auth_service: DEBUG
+    org.springframework.security: DEBUG
+    org.keycloak: DEBUG
+    javax.ws.rs: DEBUG
+    jakarta.ws.rs: DEBUG
+
+---
+# Test Profile
+spring:
+  config:
+    activate:
+      on-profile: test
+
+  datasource:
+    url: jdbc:h2:mem:auth_service_test_db
+
+eureka:
+  client:
+    enabled: false
+
 keycloak:
   auth-server-url: http://localhost:8089
 
@@ -206,6 +299,7 @@ logging:
   level:
     com.sparrow.auth_service: DEBUG
     org.springframework.security: DEBUG
+    root: INFO
 
 ---
 # Production Profile
@@ -214,11 +308,50 @@ spring:
     activate:
       on-profile: production
 
+  datasource:
+    # In production, you might want to use PostgreSQL instead of H2
+    url: ${DATABASE_URL:jdbc:h2:mem:auth_service_prod_db}
+    username: ${DATABASE_USERNAME:sa}
+    password: ${DATABASE_PASSWORD:}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Don't auto-create tables in production
+    show-sql: false
+
+  h2:
+    console:
+      enabled: false  # Disable H2 console in production
+
 keycloak:
   auth-server-url: ${KEYCLOAK_URL}
+  admin:
+    username: ${KEYCLOAK_ADMIN_USER}
+    password: ${KEYCLOAK_ADMIN_PASSWORD}
+
+eureka:
+  instance:
+    hostname: ${HOSTNAME:auth-service}
+    prefer-ip-address: false
+
+management:
+  endpoint:
+    health:
+      show-details: when-authorized  # Restrict health details in production
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
 
 logging:
   level:
     com.sparrow.auth_service: INFO
     org.springframework.security: WARN
+    org.keycloak: WARN
+    javax.ws.rs: WARN
+    jakarta.ws.rs: WARN
     root: WARN
+  file:
+    name: /var/log/auth-service/application.log
+    max-size: 10MB
+    max-history: 30

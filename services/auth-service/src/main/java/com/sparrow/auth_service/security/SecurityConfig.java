@@ -1,5 +1,6 @@
 package com.sparrow.auth_service.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -24,6 +25,12 @@ import java.util.stream.Collectors;
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true) // Enable @PreAuthorize annotations
 public class SecurityConfig {
+
+    @Value("${keycloak.auth-server-url}")
+    private String keycloakServerUrl;
+
+    @Value("${keycloak.realm}")
+    private String realm;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -68,6 +75,7 @@ public class SecurityConfig {
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
+                                .jwkSetUri(keycloakServerUrl + "/realms/" + realm + "/protocol/openid-connect/certs")
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter())
                         )
                 );

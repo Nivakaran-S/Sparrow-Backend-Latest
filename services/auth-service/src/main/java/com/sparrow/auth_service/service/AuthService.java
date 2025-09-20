@@ -20,7 +20,10 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import javax.ws.rs.NotAuthorizedException;
+// Remove javax.ws.rs.NotAuthorizedException import
+// Handle authentication exceptions differently
+import org.springframework.security.authentication.BadCredentialsException;
+
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -92,10 +95,16 @@ public class AuthService {
             log.info("User {} logged in successfully with roles: {}", request.getUsername(), userRoles);
             return response;
 
-        } catch (NotAuthorizedException e) {
-            log.warn("Invalid credentials for user: {}", request.getUsername());
-            throw new RuntimeException("Invalid username or password");
         } catch (Exception e) {
+            // Handle different types of authentication exceptions
+            if (e.getMessage() != null && (
+                    e.getMessage().contains("invalid_grant") ||
+                            e.getMessage().contains("Unauthorized") ||
+                            e.getMessage().contains("401"))) {
+                log.warn("Invalid credentials for user: {}", request.getUsername());
+                throw new BadCredentialsException("Invalid username or password");
+            }
+
             log.error("Login failed for user: {}", request.getUsername(), e);
             throw new RuntimeException("Login failed: " + e.getMessage());
         }

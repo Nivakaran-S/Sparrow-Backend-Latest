@@ -1,12 +1,20 @@
 package com.sparrow.auth_service.config;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.HandlerInterceptor;
+
+// Use Jakarta EE instead of javax
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
-public class WebConfig implements org.springframework.web.servlet.config.annotation.WebMvcConfigurer {
+public class WebConfig implements WebMvcConfigurer {
 
     @Override
-    public void addCorsMappings(org.springframework.web.servlet.config.annotation.CorsRegistry registry) {
+    public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
                 .allowedOriginPatterns("http://localhost:*", "https://*.sparrow.com")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
@@ -16,11 +24,12 @@ public class WebConfig implements org.springframework.web.servlet.config.annotat
     }
 
     @Override
-    public void addInterceptors(org.springframework.web.servlet.config.annotation.InterceptorRegistry registry) {
-        registry.addInterceptor(new org.springframework.web.servlet.HandlerInterceptor() {
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(new HandlerInterceptor() {
+            @Override
             public boolean preHandle(
-                    javax.servlet.http.HttpServletRequest request,
-                    javax.servlet.http.HttpServletResponse response,
+                    HttpServletRequest request,
+                    HttpServletResponse response,
                     Object handler) {
 
                 // Add security headers
