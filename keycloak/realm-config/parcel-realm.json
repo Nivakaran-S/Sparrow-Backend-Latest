@@ -50,8 +50,8 @@
           }
         }
       ],
-      "defaultClientScopes": ["profile", "email", "roles"],
-      "optionalClientScopes": []
+      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "email"],
+      "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt"]
     },
     {
       "clientId": "parcel-service",
@@ -106,35 +106,6 @@
       ]
     }
   ],
-
-  "clientScopes": [
-    {
-      "name": "roles",
-      "description": "OpenID Connect scope for add user roles to the access token",
-      "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "true",
-        "display.on.consent.screen": "true"
-      },
-      "protocolMappers": [
-        {
-          "name": "realm roles",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-usermodel-realm-role-mapper",
-          "config": {
-            "multivalued": "true",
-            "userinfo.token.claim": "true",
-            "id.token.claim": "true",
-            "access.token.claim": "true",
-            "claim.name": "realm_access.roles",
-            "jsonType.label": "String"
-          }
-        }
-      ]
-    }
-  ],
-
-  "defaultDefaultClientScopes": ["profile", "email", "roles"],
 
   "roles": {
     "realm": [
@@ -193,6 +164,86 @@
       ],
       "realmRoles": ["CUSTOMER", "USER"],
       "emailVerified": true
+    },
+    {
+      "username": "staff1",
+      "email": "staff1@parcel.com",
+      "firstName": "Alice",
+      "lastName": "Johnson",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "staff123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["STAFF", "USER"],
+      "emailVerified": true
+    },
+    {
+      "username": "staff2",
+      "email": "staff2@parcel.com",
+      "firstName": "Bob",
+      "lastName": "Smith",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "staff123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["STAFF", "USER"],
+      "emailVerified": true
+    },
+    {
+      "username": "driver1",
+      "email": "driver1@parcel.com",
+      "firstName": "Charlie",
+      "lastName": "Brown",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "driver123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["DRIVER", "USER"],
+      "emailVerified": true
+    },
+    {
+      "username": "driver2",
+      "email": "driver2@parcel.com",
+      "firstName": "Diana",
+      "lastName": "Wilson",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "driver123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["DRIVER", "USER"],
+      "emailVerified": true
+    },
+    {
+      "username": "customer2",
+      "email": "customer2@example.com",
+      "firstName": "Emma",
+      "lastName": "Davis",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "customer123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["CUSTOMER", "USER"],
+      "emailVerified": true
     }
   ],
 
@@ -215,5 +266,35 @@
     }
   ],
 
-  "defaultRoles": ["USER"]
+  "defaultRoles": ["USER"],
+
+  "clientScopes": [
+    {
+      "name": "roles",
+      "description": "OpenID Connect scope for add user roles to the access token",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ],
+
+  "defaultDefaultClientScopes": ["web-origins", "acr", "profile", "roles", "email"],
+  "defaultOptionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt"]
 }

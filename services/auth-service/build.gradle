@@ -77,6 +77,9 @@ dependencies {
     // Configuration Processor
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
+    // Jackson module for Java time (fix LocalDateTime serialization)
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
     // Testing Dependencies
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'

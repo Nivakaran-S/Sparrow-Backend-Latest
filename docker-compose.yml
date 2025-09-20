@@ -120,19 +120,19 @@ services:
     restart: unless-stopped
 
   # ---------- Keycloak & Auth ----------
-
   keycloak:
     image: quay.io/keycloak/keycloak:23.0.7
     container_name: keycloak
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin123
-      KC_DB: dev-mem  # ← CHANGED: Use in-memory database instead of PostgreSQL
+      # Use in-memory database for development to avoid PostgreSQL issues
+      KC_DB: dev-mem
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME_STRICT_HTTPS: "false"
       KC_LOG_LEVEL: INFO
-      KC_IMPORT: /opt/keycloak/data/import/parcel-realm.json
+      # Remove import for now to simplify startup
     ports:
       - "8089:8080"
     volumes:
@@ -144,11 +144,11 @@ services:
       - parcel-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health/ready" ]
       interval: 30s
       timeout: 10s
       retries: 15
-      start_period: 120s
+      start_period: 60s
 
   auth-service:
     build:
@@ -163,7 +163,7 @@ services:
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/parcel-realm
       KEYCLOAK_REALM: parcel-realm
       KEYCLOAK_CLIENT: auth-service
-      KEYCLOAK_SECRET: auth-service-secret  # Make sure this matches your realm JSON
+      KEYCLOAK_SECRET: auth-service-secret
       KEYCLOAK_ADMIN_USER: admin
       KEYCLOAK_ADMIN_PASSWORD: admin123
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
@@ -291,7 +291,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
       interval: 30s
       timeout: 10s
-      retries: 5  # FIXED: Changed from 'retrides' to 'retries'
+      retries: 5
       start_period: 60s
 
   pricing-service:

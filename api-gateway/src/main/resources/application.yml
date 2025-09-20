@@ -8,23 +8,7 @@ spring:
     allow-bean-definition-overriding: true
   cloud:
     gateway:
-      globalcors:
-        cors-configurations:
-          '[/**]':
-            allowedOrigins:
-              - "http://localhost:3000"
-              - "http://127.0.0.1:3000"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - DELETE
-              - OPTIONS
-            allowedHeaders:
-              - "*"
-            allowCredentials: true
-            maxAge: 3600
-      # Removed conflicting routes - let Java configuration handle them
+      # Remove global CORS configuration - let CorsConfig bean handle it
       routes:
         - id: kafka-ui
           uri: http://kafka-ui:8080
@@ -112,4 +96,4 @@ management:
 logging:
   level:
     org.springframework.cloud.gateway: DEBUG
-    com.parcel.apigateway: DEBUG
+    com.sparrow.apigateway: DEBUG
