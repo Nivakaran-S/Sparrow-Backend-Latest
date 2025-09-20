@@ -22,6 +22,14 @@ spring:
             - Path=/auth/admin/**
           filters:
             - RewritePath=/auth/admin/(?<segment>.*), /admin/${segment}
+        - id: warehouse-service
+          uri: lb://warehouse-service
+          predicates:
+            - Path=/api/warehouses/**
+        - id: consolidation-service
+          uri: lb://consolidation-service
+          predicates:
+            - Path=/api/consolidations/**
 
   data:
     redis:
