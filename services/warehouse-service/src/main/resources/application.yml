@@ -6,18 +6,16 @@ spring:
     name: warehouse-service
   data:
     mongodb:
-      host: localhost
-      port: 27017
-      database: warehouse_db
+      uri: mongodb://admin:password@mongodb:27017/warehouse_db?authSource=admin
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: kafka:9092
     consumer:
       group-id: warehouse-service-group
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: "com.sparrow.warehouseservice.model.*"
+        spring.json.trusted.packages: "com.sparrow.warehouse_service.model.*"
         spring.json.use.type.headers: false
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -36,7 +34,16 @@ eureka:
     service-url:
       defaultZone: http://eureka-server:8761/eureka/
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
 logging:
   level:
-    com.sparrow.warehouseservice: DEBUG
+    com.sparrow.warehouse_service: DEBUG
     org.springframework.kafka: INFO

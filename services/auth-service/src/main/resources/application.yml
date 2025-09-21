@@ -20,13 +20,13 @@ spring:
       hibernate:
         format_sql: true
 
-  # Spring Security OAuth2 Resource Server Configuration
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: http://keycloak:8080/realms/parcel-realm
-          jwk-set-uri: http://keycloak:8080/realms/parcel-realm/protocol/openid-connect/certs
+  # REMOVED: Spring Security OAuth2 Resource Server Configuration
+  # security:
+  #   oauth2:
+  #     resourceserver:
+  #       jwt:
+  #         issuer-uri: http://keycloak:8080/realms/parcel-realm
+  #         jwk-set-uri: http://keycloak:8080/realms/parcel-realm/protocol/openid-connect/certs
 
   # Web Configuration
   web:
@@ -70,7 +70,7 @@ spring:
   logging:
     level:
       com.sparrow.auth: DEBUG
-      org.springframework.security: DEBUG
+      # REMOVED: org.springframework.security: DEBUG
       org.keycloak: DEBUG
       org.hibernate.sql: DEBUG
       org.hibernate.type: TRACE
@@ -105,7 +105,7 @@ eureka:
     status-page-url-path: /actuator/info
     health-check-url-path: /actuator/health
 
-# Keycloak Configuration
+# Keycloak Configuration (Keep for user management functionality)
 keycloak:
   # Standard Keycloak properties
   auth-server-url: http://keycloak:8080
@@ -125,7 +125,7 @@ keycloak:
     id: auth-service
     secret: auth-service-secret
 
-  # Token Configuration
+  # Token Configuration (Still used for login/logout functionality)
   token:
     expiration: 3600  # 1 hour
     refresh-expiration: 7200  # 2 hours
@@ -136,7 +136,7 @@ keycloak:
     connection-timeout: 30000
     socket-timeout: 30000
 
-# Security Configuration
+# Security Configuration (Simplified)
 security:
   jwt:
     secret: your-jwt-secret-key-here-change-in-production  # Change this in production

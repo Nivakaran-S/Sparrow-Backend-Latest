@@ -3,14 +3,12 @@ server:
 
 spring:
   application:
-    name: parcel-consolidation-service
+    name: consolidation-service
   data:
     mongodb:
-      host: localhost
-      port: 27017
-      database: parcel_consolidation_db
+      uri: mongodb://admin:password@mongodb:27017/parcel_consolidation_db?authSource=admin
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: kafka:9092
     consumer:
       group-id: parcel-consolidation-group
       auto-offset-reset: earliest
@@ -38,12 +36,6 @@ eureka:
     service-url:
       defaultZone: http://eureka-server:8761/eureka/
 
-logging:
-  level:
-    com.sparrow.consolidation_service: DEBUG
-    org.springframework.kafka: INFO
-    org.apache.kafka: WARN
-
 management:
   endpoints:
     web:
@@ -52,3 +44,9 @@ management:
   endpoint:
     health:
       show-details: always
+
+logging:
+  level:
+    com.sparrow.consolidation_service: DEBUG
+    org.springframework.kafka: INFO
+    org.apache.kafka: WARN

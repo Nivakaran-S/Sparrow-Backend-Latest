@@ -47,10 +47,8 @@ dependencies {
     // Kafka
     implementation 'org.springframework.kafka:spring-kafka'
 
-    // Security & OAuth2
+    // Basic Security (without OAuth2)
     implementation 'org.springframework.boot:spring-boot-starter-security'
-    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
-    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 
     // OpenAPI/Swagger
     implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.3.0'

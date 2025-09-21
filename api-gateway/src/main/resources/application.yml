@@ -43,12 +43,6 @@ spring:
     consumer:
       group-id: api-gateway-group
 
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: http://localhost:8089/realms/parcel-realm
-
 eureka:
   client:
     service-url:

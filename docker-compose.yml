@@ -132,7 +132,6 @@ services:
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME_STRICT_HTTPS: "false"
       KC_LOG_LEVEL: INFO
-      # Remove import for now to simplify startup
     ports:
       - "8089:8080"
     volumes:
@@ -233,7 +232,7 @@ services:
       retries: 5
       start_period: 60s
 
-  # ---------- Microservices ----------
+  # ---------- Spring Boot Microservices ----------
   consolidation-service:
     build:
       context: ./services/consolidation-service
@@ -354,6 +353,7 @@ services:
       retries: 5
       start_period: 60s
 
+  # ---------- Python Services ----------
   chatbot-service:
     build:
       context: ./services/chatbot-service
@@ -370,6 +370,10 @@ services:
       CONSOLIDATION_SERVICE_URL: "http://consolidation-service:8081"
     depends_on:
       auth-service:
+        condition: service_healthy
+      warehouse-service:
+        condition: service_healthy
+      consolidation-service:
         condition: service_healthy
     networks:
       - parcel-network
@@ -398,6 +402,10 @@ services:
     depends_on:
       auth-service:
         condition: service_healthy
+      warehouse-service:
+        condition: service_healthy
+      consolidation-service:
+        condition: service_healthy
     networks:
       - parcel-network
     restart: unless-stopped
@@ -408,6 +416,7 @@ services:
       retries: 5
       start_period: 20s
 
+  # ---------- Java Parcel Service ----------
   parcel-service:
     build:
       context: ./services/parcel-service

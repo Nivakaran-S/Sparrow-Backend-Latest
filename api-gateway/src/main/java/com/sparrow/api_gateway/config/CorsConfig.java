@@ -6,8 +6,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
-import java.util.List;
-
 @Configuration
 public class CorsConfig {
 
@@ -15,19 +13,19 @@ public class CorsConfig {
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfig = new CorsConfiguration();
 
-        // Allow specific origins - use setAllowedOrigins instead of addAllowedOrigin to avoid duplicates
-        corsConfig.setAllowedOrigins(List.of("http://localhost:3000"));
+        // Allow your frontend origin
+        corsConfig.addAllowedOrigin("http://localhost:3000");
 
-        // Allow all headers
-        corsConfig.setAllowedHeaders(List.of("*"));
+        // Allow all common headers
+        corsConfig.addAllowedHeader("*");
 
-        // Allow specific methods
-        corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        // Allow all HTTP methods
+        corsConfig.addAllowedMethod("*");
 
-        // Allow credentials
+        // Allow credentials (for authentication)
         corsConfig.setAllowCredentials(true);
 
-        // Cache preflight response for 1 hour
+        // How long to cache preflight response (1 hour)
         corsConfig.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

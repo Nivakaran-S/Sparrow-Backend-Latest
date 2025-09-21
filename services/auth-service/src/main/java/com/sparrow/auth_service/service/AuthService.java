@@ -21,6 +21,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import jakarta.ws.rs.BadRequestException;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -65,12 +66,14 @@ public class AuthService {
             // Get user details
             UserRepresentation user = findUserByUsername(request.getUsername());
             if (user == null) {
-                throw new RuntimeException("User not found after successful login");
+                log.warn("No user found for username: {}", request.getUsername());
+                throw new BadCredentialsException("User not found");
             }
 
             // Check if user is enabled
             if (!user.isEnabled()) {
-                throw new RuntimeException("User account is disabled");
+                log.warn("User account disabled: {}", request.getUsername());
+                throw new BadCredentialsException("User account is disabled");
             }
 
             // Get user roles
@@ -90,6 +93,9 @@ public class AuthService {
             log.info("User {} logged in successfully with roles: {}", request.getUsername(), userRoles);
             return response;
 
+        } catch (BadRequestException e) {
+            log.error("Bad request to Keycloak for user: {}", request.getUsername(), e);
+            throw new BadCredentialsException("Invalid request to authentication server");
         } catch (Exception e) {
             if (e.getMessage() != null && (
                     e.getMessage().contains("invalid_grant") ||
@@ -98,7 +104,6 @@ public class AuthService {
                 log.warn("Invalid credentials for user: {}", request.getUsername());
                 throw new BadCredentialsException("Invalid username or password");
             }
-
             log.error("Login failed for user: {}", request.getUsername(), e);
             throw new RuntimeException("Login failed: " + e.getMessage());
         }
@@ -124,7 +129,8 @@ public class AuthService {
             Map<String, Object> tokenResponse = responseEntity.getBody();
 
             if (tokenResponse == null || !tokenResponse.containsKey("access_token")) {
-                throw new RuntimeException("Invalid refresh token");
+                log.warn("Invalid refresh token response");
+                throw new BadCredentialsException("Invalid refresh token");
             }
 
             String accessToken = (String) tokenResponse.get("access_token");
@@ -135,7 +141,8 @@ public class AuthService {
             UserRepresentation user = findUserByUsername(username);
 
             if (user == null) {
-                throw new RuntimeException("User not found during token refresh");
+                log.warn("No user found for username during token refresh: {}", username);
+                throw new BadCredentialsException("User not found during token refresh");
             }
 
             List<String> userRoles = keycloakService.getUserRoles(user.getId());
@@ -155,7 +162,7 @@ public class AuthService {
 
         } catch (Exception e) {
             log.error("Token refresh failed", e);
-            throw new RuntimeException("Invalid refresh token: " + e.getMessage());
+            throw new BadCredentialsException("Invalid refresh token: " + e.getMessage());
         }
     }
 
@@ -191,14 +198,18 @@ public class AuthService {
     private UserRepresentation findUserByUsername(String username) {
         try {
             List<UserRepresentation> users = adminKeycloak.realm(realm).users()
-                    .search(username, null, null, null, 0, 1);
-
-            return users.stream()
-                    .filter(u -> username.equals(u.getUsername()))
-                    .findFirst()
-                    .orElse(null);
+                    .search(username, true); // Exact match
+            if (users.isEmpty()) {
+                log.warn("No user found for username: {}", username);
+                return null;
+            }
+            log.info("Found user: {}", username);
+            return users.get(0);
+        } catch (BadRequestException e) {
+            log.error("Bad request when searching user: {}", username, e);
+            throw new BadCredentialsException("Invalid request to authentication server");
         } catch (Exception e) {
-            log.error("Error finding user by username: {}", username, e);
+            log.error("Error finding user by username: {}. Exception: {}", username, e.getMessage(), e);
             return null;
         }
     }
@@ -207,16 +218,22 @@ public class AuthService {
         try {
             String[] parts = token.split("\\.");
             if (parts.length < 2) {
-                throw new RuntimeException("Invalid JWT token");
+                log.warn("Invalid JWT token format");
+                throw new BadCredentialsException("Invalid JWT token");
             }
 
             String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
             Map<String, Object> claims = objectMapper.readValue(payload, Map.class);
 
-            return (String) claims.get("preferred_username");
+            String username = (String) claims.get("preferred_username");
+            if (username == null) {
+                log.warn("No username found in JWT token");
+                throw new BadCredentialsException("No username found in token");
+            }
+            return username;
         } catch (Exception e) {
             log.error("Error extracting username from token", e);
-            throw new RuntimeException("Failed to extract username from token");
+            throw new BadCredentialsException("Failed to extract username from token");
         }
     }
 }
